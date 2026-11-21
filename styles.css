@@ -160,3 +160,5 @@ h3 { font-size: 1.02rem; margin: 0 0 8px; }
   #bildirim { bottom: 28px; }
 }
 @media (prefers-reduced-motion: reduce) { #bildirim { transition: none; } }
+
+.taslak { margin: 0; padding: 6px 16px; background: #fdf1e2; color: #4a2a08; border-bottom: 1px solid #f0d3ad; font-size: .82rem; text-align: center; }
