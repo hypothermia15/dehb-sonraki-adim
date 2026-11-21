@@ -1,3 +1,9 @@
+# DEHB'de Bir Sonraki Adım (Türkçe uyarlama)
+
+> Bu depo, Danya Dotan'ın [How to ADHD (Parent Pilot)](https://github.com/danyadotan/how-to-adhd) çalışmasının Türkçe uyarlamasıdır (MIT). Uygulama Türkçe için yeniden yazıldı; neyin alındığı, çıkarıldığı ve eklendiği [UYARLAMA.md](UYARLAMA.md) dosyasındadır. Aşağıdaki metin özgün README'dir ve özgün sürümü anlatır; bu depoda artık bulunmayan dosyalara değinir.
+
+---
+
 # How to ADHD - Parent Pilot
 
 Standalone, no-build, no-dependency, mobile-first Hebrew/English interactive parent-guidance app. **Not connected to KazoAni, TAB@Work or Lovable.**

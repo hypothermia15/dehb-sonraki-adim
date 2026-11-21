@@ -1,1101 +1,493 @@
 "use strict";
-const IS_BROWSER = typeof document !== "undefined";
-const STORE = "howtoadhd-pilot-v1";
-const initial = {
-  lang: "he",
-  view: "home",
-  age: "all",
-  search: "",
-  scenario: null,
-  stepMode: "normal",
-  followQuestion: null,
-  simStage: 0,
-  simPick: null,
-  tourStep: 0,
-  role: "",
-};
-const state = { ...initial };
-let saved = [];
-function esc(s) {
-  return String(s ?? "").replace(
-    /[&<>"']/g,
-    (c) =>
-      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
-        c
-      ],
-  );
+/* DEHB'de Bir Sonraki Adım — ebeveynler için durum rehberi.
+   Özgün eser: How to ADHD (Parent Pilot), Danya Dotan (2026), MIT lisansı.
+   Türkçe uyarlama: Doç. Dr. Miraç Barış Usta. Değişiklikler UYARLAMA.md dosyasında.
+   Kaydedilen adımlar yalnızca bu tarayıcıda durur; hiçbir veri gönderilmez. */
+
+const DEPO = "dehb-adimlar-v1";
+const durum = { gorunum: "ana", yas: "hepsi", arama: "", senaryo: null, kip: "adim", secim: null, prova: 0, provaSecim: null };
+let kayitli = [];
+
+function kac(s) {
+  return String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 }
-function t(he, en) {
-  return state.lang === "he" ? he : en;
-}
-function readSaved() {
+function kayitOku() {
   try {
-    const v = JSON.parse(localStorage.getItem(STORE) || "[]");
-    return Array.isArray(v)
-      ? v
-          .filter(
-            (x) =>
-              x && typeof x.id === "string" && typeof x.scenario === "string",
-          )
-          .slice(0, 100)
-      : [];
+    const v = JSON.parse(localStorage.getItem(DEPO) || "[]");
+    return Array.isArray(v) ? v.filter((x) => x && typeof x.id === "string" && typeof x.senaryo === "string").slice(0, 100) : [];
   } catch {
     return [];
   }
 }
-function persist() {
+function kayitYaz() {
   try {
-    localStorage.setItem(STORE, JSON.stringify(saved));
+    localStorage.setItem(DEPO, JSON.stringify(kayitli));
     return true;
   } catch {
-    toast(t("אי אפשר לשמור בדפדפן הזה", "Unable to save in this browser"));
+    bildir("Bu tarayıcıda kaydedilemiyor");
     return false;
   }
 }
-const scenarios = [
+
+/* ───────────── Durumlar ─────────────
+   adim: denenecek tek şey · kucuk: daha küçük hâli · baska: başka bir yol · cumle: kullanılabilecek söz
+   soru/yanit: adımı kişiselleştiren tek soru · uyari: ne zaman başka yardım gerekir */
+const senaryolar = [
   {
-    id: "morning",
-    age: "5-9",
-    emoji: "☀️",
-    title: ["הבוקר מתחיל במאבק", "Mornings turn into battles"],
-    desc: [
-      "כל מעבר קטן גורר התנגדות, וכולם ממהרים.",
-      "Every small transition triggers a struggle when time is short.",
+    id: "sabah", yas: "5-9", simge: "☀️",
+    baslik: "Sabahlar kavgayla başlıyor",
+    ozet: "Vakit daralınca her küçük geçiş bir çekişmeye dönüyor.",
+    neden: "Geçişler ve art arda gelen yönergeler, başlamayı gözünde büyütebilir. Sabah, bu ikisinin en yoğun olduğu saattir.",
+    adim: "Tek bir iş seçin: ayakkabıyı giymek. Yanına oturun ve birlikte başlamayı önerin.",
+    kucuk: "Bir ayakkabıyı kapının yanına koyun. Şimdilik bu kadarı yeter.",
+    baska: "İki seçenek sunun: önce sağ ayakkabı mı, sol mu?",
+    cumle: "“Başlamak zor görünüyor. Yalnızca bir ayakkabıyı giyelim, ben buradayım.”",
+    soru: ["Vakit dar", "Acelemiz olmayan günlerde de oluyor"],
+    yanit: [
+      "Bu sabahlık beklentilerden birini bırakın ve sesinizi sakin tutun. Geç kalınan bir sabah, öğretme zamanı değildir.",
+      "Sakin bir saatte “tek iş seçme”yi birlikte prova edin; sabah düzenini resimli bir sıraya dökmek yardımcı olabilir.",
     ],
-    why: [
-      "מעברים, עומס הוראות וקושי להתחיל יכולים להפוך את הבוקר להצפה.",
-      "Transitions and too many instructions can make getting started overwhelming.",
-    ],
-    step: [
-      "בחרו פעולה אחת בלבד: לנעול נעליים. שבו ליד הילד והציעו להתחיל יחד.",
-      "Choose one action only: put on shoes. Sit nearby and offer to begin together.",
-    ],
-    small: [
-      "הניחו נעל אחת ליד הדלת. זה הכול לעכשיו.",
-      "Put one shoe by the door. That is enough for now.",
-    ],
-    alternative: [
-      "הציעו בחירה מצומצמת: נעל ימין או שמאל קודם?",
-      "Offer two choices: right shoe or left shoe first?",
-    ],
-    script: [
-      '"אני רואה שקשה להתחיל. בוא נבחר רק נעל אחת, ואני איתך."',
-      "“Getting started looks hard. Let’s do just one shoe. I’m here.”",
-    ],
-    question: [
-      [
-        "יש לחץ זמן",
-        "זה קורה גם בלי לחץ",
-        "Time is tight",
-        "It also happens on relaxed days",
-      ],
-    ],
-    advice: [
-      [
-        "הורידו ציפייה אחת מהבוקר ושמרו על טון שקט.",
-        "נסו לתרגל בחירת פעולה אחת בשעה רגועה.",
-        "Drop one expectation for now and keep your voice steady.",
-        "Practice choosing one action during an unhurried moment.",
-      ],
-    ],
-    risk: [
-      "אם הילד במצוקה קשה או מסרב באופן מתמשך ללכת לבית הספר, שווה לשוחח עם הצוות החינוכי ואיש מקצוע.",
-      "If distress or school refusal persists, involve the school team and a qualified professional.",
+    uyari: "Sıkıntı çok yoğunsa ya da okula gitmeme haftalardır sürüyorsa okulun rehberlik servisiyle ve çocuğu izleyen uzmanla görüşün.",
+  },
+  {
+    id: "odev", yas: "10-13", simge: "✏️",
+    baslik: "Ödev bir türlü başlamıyor",
+    ozet: "Defter açık, zaman geçiyor, ilk adım gelmiyor.",
+    neden: "Bir işe başlamak, işi sürdürmekten daha çok destek isteyebilir. “Yapamıyor” ile “başlayamıyor” aynı şey değildir.",
+    adim: "Masaya tek bir sayfa koyun ve başlanacak tek bir soruyu birlikte seçin.",
+    kucuk: "Defterin doğru sayfasını açın. Henüz yanıtlamak gerekmiyor.",
+    baska: "Sorun: “Soruyu birlikte mi okuyalım, yoksa ben mi sesli okuyayım?”",
+    cumle: "“Hepsini şimdi bitirmek zorunda değiliz. Yalnızca nereden başlayacağımızı seçiyoruz.”",
+    soru: ["Başlamak zor", "Sürdürmek zor"],
+    yanit: [
+      "Sonuç beklemeden 90 saniyelik sabit bir başlangıç düzeni deneyin: masa, kalem, tek soru.",
+      "Kısa bir çalışma aralığı ve önceden kararlaştırılmış bir mola kullanın. Molanın ne zaman biteceği baştan belli olsun.",
     ],
   },
   {
-    id: "homework",
-    age: "10-13",
-    emoji: "✏️",
-    title: ["שיעורי הבית לא מתחילים", "Homework never gets started"],
-    desc: [
-      "המחברת פתוחה, הזמן עובר, וההתנעה לא מגיעה.",
-      "The notebook is open, but starting feels impossible.",
-    ],
-    why: [
-      "תחילת משימה עשויה לדרוש יותר תמיכה מהביצוע עצמו.",
-      "Starting a task may require more support than doing it.",
-    ],
-    step: [
-      "הניחו דף אחד על השולחן וסמנו יחד שאלה אחת להתחלה.",
-      "Put out one page and choose just one question together.",
-    ],
-    small: [
-      "פתחו את המחברת בעמוד המתאים. לא צריך עדיין לענות.",
-      "Open the notebook to the right page. No answering yet.",
-    ],
-    alternative: [
-      "שאלו: לקרוא יחד את השאלה או שאני אקריא?",
-      "Ask: Shall we read the question together, or should I read it aloud?",
-    ],
-    script: [
-      '"לא חייבים לסיים הכול עכשיו. בוחרים רק איפה מתחילים."',
-      "“We don’t have to finish everything now. We’re just choosing where to start.”",
-    ],
-    question: [
-      [
-        "קשה להתחיל",
-        "קשה להתמיד",
-        "Starting is hard",
-        "Staying with it is hard",
-      ],
-    ],
-    advice: [
-      [
-        "נסו טקס התחלה קבוע של 90 שניות בלי דרישה לתוצאה.",
-        "חלקו לעבודה קצרה והפסקה מתוכננת מראש.",
-        "Try a 90-second start ritual without demanding an outcome.",
-        "Use a short work interval followed by a planned break.",
-      ],
+    id: "ekran", yas: "14-18", simge: "📱",
+    baslik: "Ekran kapanınca tartışma başlıyor",
+    ozet: "Telefondan başka bir işe geçiş herkesi geriyor.",
+    neden: "Keyif veren bir etkinliği birden kesmek güçlü bir dirençle karşılaşabilir. Tartışma çoğu zaman sürenin kendisinden değil, kesilme biçiminden çıkar.",
+    adim: "Sakin bir anda, bir sonraki geçiş için ortak bir işaret kararlaştırın.",
+    kucuk: "Bitirmeden önce nasıl bir uyarının işine yarayacağını sorun. Önce dinleyin.",
+    baska: "Doğal bir durma noktasında anlaşın: videonun, bölümün ya da şarkının sonu.",
+    cumle: "“Kapatmanın seni hazırlıksız yakalamasını istemiyorum. Nasıl bitireceğimizi birlikte kararlaştıralım.”",
+    soru: ["Zaten bir anlaşmamız var", "Hiç anlaşmamız yok"],
+    yanit: [
+      "Anlaşmayı tartışmanın ortasında değil, sakin bir zamanda yeniden konuşun. İşlemeyen maddeyi birlikte değiştirin.",
+      "Sınır koymadan önce ihtiyaçları ve beklentileri konuşun: o neye ihtiyaç duyuyor, siz neye?",
     ],
   },
   {
-    id: "screens",
-    age: "14-18",
-    emoji: "📱",
-    title: ["המסך נגמר, הוויכוח מתחיל", "Screen time ends in an argument"],
-    desc: [
-      "המעבר מהטלפון לפעילות אחרת מדליק את כולם.",
-      "Moving away from a device sets off a conflict.",
+    id: "tasma", yas: "hepsi", simge: "🌧️",
+    baslik: "Duygusal taşma",
+    ozet: "Sesler yükseliyor, an herkese fazla geliyor.",
+    neden: "Taşma sırasında açıklamaları ve istekleri işlemek zorlaşır. O anda öğretilen şey akılda kalmaz.",
+    adim: "Sözü ve gürültüyü azaltın. Herkesin güvende olduğundan emin olun ve sakin biçimde yanında kalın.",
+    kucuk: "On saniye boyunca açıklamayı bırakın. Nefes alın ve güvenliği gözden geçirin.",
+    baska: "Soru sormadan sessiz bir yer ya da sakin bir eşlik önerin.",
+    cumle: "“Buradayım. Biraz kolaylaşınca konuşuruz.”",
+    soru: ["Herkes güvende", "Yaralanma tehlikesi var"],
+    yanit: [
+      "Şimdi az söz kullanın; olanları daha sonra, sakinleşince konuşup onarın.",
+      "Biri o anda tehlikedeyse 112’yi arayın. Bu sayfaya güvenerek beklemeyin.",
     ],
-    why: [
-      "הפסקה פתאומית של פעילות מתגמלת יכולה לעורר התנגדות.",
-      "Abruptly stopping a rewarding activity can bring strong resistance.",
-    ],
-    step: [
-      "בזמן רגוע, קבעו יחד סימן מוסכם למעבר הבא.",
-      "At a calm moment, agree together on a transition cue.",
-    ],
-    small: [
-      "שאלו מה יעזור לקבל התראה לפני סיום. הקשיבו בלי להתווכח.",
-      "Ask what kind of warning would help before stopping. Listen first.",
-    ],
-    alternative: [
-      "בחרו יחד נקודת עצירה טבעית: סוף סרטון, משחקון או שיר.",
-      "Agree on a natural stopping point: end of a video, level, or song.",
-    ],
-    script: [
-      '"אני לא רוצה להפתיע אותך בכיבוי. נחליט יחד איך מסיימים."',
-      "“I don’t want the shutdown to surprise you. Let’s agree on how to finish.”",
-    ],
-    question: [
-      [
-        "יש הסכם קודם",
-        "אין הסכם קודם",
-        "We already agreed",
-        "We have no agreement",
-      ],
-    ],
-    advice: [
-      [
-        "חזרו על ההסכם אחרי שנרגעים, לא בשיא הוויכוח.",
-        "התחילו בשיחה על צרכים וציפיות לפני קביעת מגבלות.",
-        "Revisit the agreement when calm, not in the middle of conflict.",
-        "Start with needs and expectations before setting limits.",
-      ],
-    ],
+    uyari: "Çocuğun kendine ya da başkasına zarar verme tehlikesi varsa 112 Acil Çağrı Merkezi’ni arayın.",
   },
   {
-    id: "overwhelm",
-    age: "all",
-    emoji: "🌧️",
-    title: ["יש התפרצות רגשית", "An emotional meltdown"],
-    desc: [
-      "הקול עולה, המילים נתקעות, והכול מרגיש גדול מדי.",
-      "Voices rise and the moment feels too big.",
+    id: "ogretmen", yas: "hepsi", simge: "🏫",
+    baslik: "Öğretmenle konuşmak",
+    ozet: "Suçlamaya dönüşmeyen bir görüşmeyle iş birliği kurmak.",
+    neden: "Tek ve açık bir istek, birlikte çalışmayı ve gidişatı gözden geçirmeyi kolaylaştırır. Uzun bir şikâyet listesi iki tarafı da savunmaya iter.",
+    adim: "Suçlamadan tek bir gözlem paylaşın ve bir haftalık bir deneme isteyin.",
+    kucuk: "Olguya dayanan tek bir açılış cümlesi yazın.",
+    baska: "Uzun yazışmalar yerine kısa bir telefon görüşmesi ya da yüz yüze on dakika isteyin.",
+    cumle: "“Son zamanlarda işe başlamak zorlaşıyor. Bir hafta boyunca aynı başlangıç işaretini deneyip neyin işe yaradığına bakabilir miyiz?”",
+    soru: ["İlişkimiz iyi", "İletişim gergin"],
+    yanit: [
+      "Gelecek hafta birlikte bakacağınız küçük bir gösterge belirleyin: örneğin dersin ilk beş dakikasında işe başlama.",
+      "Yansız bir gözlemle başlayın ve öğretmenin kendi gözlemini sorun. Görüşmeye okulun rehberlik servisini de katabilirsiniz.",
     ],
-    why: [
-      "ברגע של הצפה קשה לקלוט הסברים, דרישות או הטפות.",
-      "During overwhelm, explanations and demands may be hard to process.",
-    ],
-    step: [
-      "הקטינו דיבור ורעש. הבטיחו בטיחות ושמרו נוכחות רגועה.",
-      "Reduce words and noise. Keep everyone safe and remain calmly present.",
-    ],
-    small: [
-      "הפסיקו להסביר לעשר שניות. נשמו והתבוננו בבטיחות.",
-      "Stop explaining for ten seconds. Breathe and check for safety.",
-    ],
-    alternative: [
-      "הציעו מרחב שקט או להישאר ליד הילד בלי שאלות.",
-      "Offer a quiet space or calm company without questions.",
-    ],
-    script: [
-      '"אני פה. נדבר כשיהיה קצת יותר קל."',
-      "“I’m here. We can talk when things feel easier.”",
-    ],
-    question: [
-      [
-        "בטוחים כרגע",
-        "יש סכנה לפגיעה",
-        "Everyone is safe",
-        "There is danger of injury",
-      ],
-    ],
-    advice: [
-      [
-        "הישארו עם מעט מילים. חזרו לשיחה ולתיקון מאוחר יותר.",
-        "אם מישהו בסכנה מיידית, פנו לשירותי חירום מקומיים. אל תסתפקו באפליקציה.",
-        "Use few words now; revisit and repair later.",
-        "If anyone is in immediate danger, contact local emergency services. Do not rely on this app.",
-      ],
-    ],
-    risk: [
-      "במקרה של סכנה מיידית לפגיעה בעצמי או באחרים, פנו לשירותי חירום מקומיים.",
-      "For immediate danger of harm to self or others, contact local emergency services.",
-    ],
+    okul: true,
   },
   {
-    id: "teacher",
-    age: "all",
-    emoji: "🏫",
-    title: ["איך מדברים עם המורה?", "Talking with a teacher"],
-    desc: [
-      "רוצים שיתוף פעולה בלי להגיע לשיחת האשמות.",
-      "Build cooperation without a blame-filled conversation.",
+    id: "arkadas", yas: "10-13", simge: "🫂",
+    baslik: "Arkadaşlıklar karışık",
+    ozet: "Kırgınlık, dışlanma ya da durumu okumakta zorlanma.",
+    neden: "Öğüt vermeden önce duyguyu tanımak çoğu zaman daha çok işe yarar. Hemen çözüm sunmak, çocuğa anlatmayı bıraktırabilir.",
+    adim: "Tek bir açık uçlu soru sorun ve düzeltmeye çalışmadan dinleyin.",
+    kucuk: "“Bu can sıkıcı olmalı” deyin. Sonra durun ve dinleyin.",
+    baska: "Hemen konuşmak yerine olanı çizmeyi önerin.",
+    cumle: "“Seni dinlememi mi istersin, yoksa ne yapılabileceğini birlikte mi düşünelim?”",
+    soru: ["Konuşmak istiyor", "Konuşmak istemiyor"],
+    yanit: [
+      "En zor gelen kısmın hangisi olduğunu sorun.",
+      "Alan tanıyın ve kapıyı açık bırakın: “İstediğinde buradayım.”",
     ],
-    why: [
-      "בקשה אחת ברורה מאפשרת לשתף פעולה ולבדוק שינוי.",
-      "One clear request helps everyone collaborate and review progress.",
-    ],
-    step: [
-      "נסחו עובדה אחת ללא שיפוט, ובקשו ניסיון משותף לשבוע.",
-      "Share one observation without blame and request a one-week trial.",
-    ],
-    small: [
-      "כתבו משפט פתיחה עובדתי אחד.",
-      "Write a single factual opening sentence.",
-    ],
-    alternative: [
-      "בקשו שיחת טלפון קצרה במקום שרשור ארוך של הודעות.",
-      "Request a short phone call instead of a long message chain.",
-    ],
-    script: [
-      '"שמתי לב שהתחלת משימות קשה לאחרונה. נוכל לנסות סימן פתיחה קבוע לשבוע ולראות מה עוזר?"',
-      "“Starting tasks has been hard lately. Could we try a consistent start cue for a week and see what helps?”",
-    ],
-    question: [
-      [
-        "יש קשר טוב",
-        "הקשר מתוח",
-        "We have a good relationship",
-        "Communication feels tense",
-      ],
-    ],
-    advice: [
-      [
-        "בקשו לתאם מדד קטן שאפשר לבדוק בעוד שבוע.",
-        "פתחו בעובדה ניטרלית והזמינו את נקודת המבט של המורה.",
-        "Agree on one small indicator to review next week.",
-        "Lead with a neutral observation and invite the teacher’s perspective.",
-      ],
-    ],
+    uyari: "Zorbalık ya da sürekli dışlanma kuşkusu varsa okul yönetimi ve rehberlik servisiyle gecikmeden görüşün.",
   },
   {
-    id: "friends",
-    age: "10-13",
-    emoji: "🫂",
-    title: ["קשה עם חברים", "Friendships feel complicated"],
-    desc: [
-      "עלבון, דחייה, או קושי להבין מה קרה.",
-      "Hurt feelings, rejection, or difficulty reading a situation.",
+    id: "okul", yas: "5-9", simge: "🎒",
+    baslik: "Okula gitmek istemiyor",
+    ozet: "“Gitmiyorum” diyor ve evden çıkmak olanaksız görünüyor.",
+    neden: "Kaçınmanın pek çok nedeni olabilir. Tek bir açıklama varsaymayın: ayrılma, sınıftaki bir güçlük, bir arkadaş ya da bedensel bir yakınma.",
+    adim: "Sakin bir zamanda hangi kısmın en zor olduğunu sorun: evden çıkmak mı, ayrılmak mı, sınıfta olmak mı?",
+    kucuk: "Yalnızca şunu sorun: “Sabahın en zor kısmı hangisi?” Düzeltmeden dinleyin.",
+    baska: "Okul gününü birlikte çizin ve zor gelen tek bir bölümü işaretleyin.",
+    cumle: "“Bunun zor olduğuna inanıyorum. Anlamak istiyorum; destek için okulla birlikte çalışabiliriz.”",
+    soru: ["Ayrılmak zor", "Okul günü zor"],
+    yanit: [
+      "Okulla birlikte kısa ve hep aynı olan bir vedalaşma düzeni kurmayı konuşun.",
+      "Güçlüğün tam olarak ne olduğunu bulmak için sınıf öğretmeninden ve rehberlik servisinden yardım isteyin.",
     ],
-    why: [
-      "לפני עצות, לפעמים צריך קודם לתקף תחושה ולהבין את הסיפור.",
-      "Before offering advice, it often helps to acknowledge the feeling.",
-    ],
-    step: [
-      "שאלו שאלה אחת פתוחה והקשיבו לסיפור בלי למהר לפתור.",
-      "Ask one open question and listen before trying to fix it.",
-    ],
-    small: [
-      'אמרו: "זה נשמע כואב." ועצרו להקשיב.',
-      "Say: “That sounds painful.” Then pause and listen.",
-    ],
-    alternative: [
-      "אפשר להציע לצייר מה קרה במקום לדבר מיד.",
-      "Offer to draw what happened instead of talking immediately.",
-    ],
-    script: [
-      '"רוצה שאקשיב, או שנחשוב יחד מה לעשות?"',
-      "“Would you like me to listen, or think together about what to do?”",
-    ],
-    question: [
-      [
-        "רוצה לדבר",
-        "לא רוצה לדבר",
-        "They want to talk",
-        "They do not want to talk",
-      ],
-    ],
-    advice: [
-      [
-        "שאלו מה היה החלק הכי קשה עבורם.",
-        "תנו מרחב והשאירו אפשרות לחזור לשיחה מאוחר יותר.",
-        "Ask which part was hardest for them.",
-        "Give space and leave the door open for later.",
-      ],
-    ],
+    uyari: "Zorbalık, istismar ya da belirgin kaygı kuşkusu varsa okulla ve bir çocuk ve ergen ruh sağlığı uzmanıyla gecikmeden görüşün. Okula gitmeme uzadıkça dönüş zorlaşır.",
+    okul: true,
   },
   {
-    id: "school",
-    age: "5-9",
-    emoji: "🎒",
-    title: ["לא רוצה ללכת לבית הספר", "Refusing to go to school"],
-    desc: [
-      '"אני לא הולך/ת" — ואי אפשר פשוט לצאת מהבית.',
-      "“I’m not going” and leaving the house feels impossible.",
+    id: "ergen", yas: "14-18", simge: "💬",
+    baslik: "Ergen çocuğum kendini kapatıyor",
+    ozet: "“Beni rahat bırak” tek yanıt gibi geliyor.",
+    neden: "Ergenlerle konuşurken özerklik, mahremiyet ve zamanlama belirleyicidir. Ne zaman konuşulacağını onun seçmesi, konuşmanın gerçekleşme olasılığını artırır.",
+    adim: "Kısa bir konuşma için izin isteyin ve zamanını onun seçmesine bırakın.",
+    kucuk: "Açık bir cümle bırakın: “İstediğinde buradayım.”",
+    baska: "Karşı karşıya oturmak yerine kısa bir araba yolculuğu ya da yürüyüş deneyin.",
+    cumle: "“Şimdi yanıt vermek zorunda değilsin. Ulaşabileceğin bir yerde olduğumu bilmeni istiyorum.”",
+    soru: ["Bu yeni başladı", "Bir süredir böyle"],
+    yanit: [
+      "Neyin değiştiğini ve nasıl hissettiğini üstelemeden, merakla sorun.",
+      "Anlatması için baskı yapmadan bağ kurun. Kaygınız sürüyorsa bir uzmandan destek alın.",
     ],
-    why: [
-      "הימנעות יכולה להיות קשורה לעומס, חרדה, קושי חברתי או חוויות בכיתה. לא מניחים סיבה אחת.",
-      "Avoidance can have many causes. Do not assume one explanation.",
-    ],
-    step: [
-      "בזמן רגוע שאלו מה החלק הכי קשה ביום: לצאת, להיפרד או להיות בכיתה?",
-      "At a calm time ask which part is hardest: leaving, separating, or being in class?",
-    ],
-    small: [
-      'שאלו רק: "מה הכי קשה בבוקר?" בלי לתקן את התשובה.',
-      "Ask only: “What is the hardest part of the morning?” Without correcting.",
-    ],
-    alternative: [
-      "הציעו לצייר את יום הלימודים ולסמן חלק אחד שמכביד.",
-      "Draw the school day and mark one difficult part.",
-    ],
-    script: [
-      '"אני מאמינה שקשה לך. אני רוצה להבין מה קורה, ונחשוב יחד עם בית הספר איך להקל."',
-      "“I believe this is hard. I want to understand, and we can work with school on support.”",
-    ],
-    question: [
-      [
-        "קושי בפרידה",
-        "קושי במהלך היום",
-        "Separation is hard",
-        "School day feels hard",
-      ],
-    ],
-    advice: [
-      [
-        "בחנו עם הצוות טקס פרידה צפוי וקצר.",
-        "שתפו את הצוות בבקשה ממוקדת להבנת מוקד הקושי.",
-        "Explore a predictable, short goodbye ritual with school.",
-        "Ask the school team to help identify the specific difficulty.",
-      ],
-    ],
-    risk: [
-      "אם יש חשד לבריונות, פגיעה או חרדה משמעותית, פנו לגורם מקצועי ולצוות החינוכי בהקדם.",
-      "If bullying, abuse, or significant anxiety is suspected, involve qualified professionals and the school promptly.",
-    ],
-  },
-  {
-    id: "teen",
-    age: "14-18",
-    emoji: "💬",
-    title: ["המתבגר/ת לא משתף/ת", "My teen shuts me out"],
-    desc: [
-      '"עזבו אותי" הוא לפעמים הדבר היחיד ששומעים.',
-      "“Leave me alone” feels like the only response.",
-    ],
-    why: [
-      "עצמאות, פרטיות ורגישות לעיתוי משפיעות על שיחות עם מתבגרים.",
-      "Autonomy, privacy and timing matter in conversations with teens.",
-    ],
-    step: [
-      "בקשו רשות לשיחה קצרה ותנו אפשרות לבחור מתי.",
-      "Ask permission for a short chat and let them choose when.",
-    ],
-    small: [
-      'השאירו משפט פתוח: "אני פה כשתרצה/י."',
-      "Leave an open sentence: “I’m here when you want.”",
-    ],
-    alternative: [
-      "הציעו נסיעה קצרה או הליכה במקום שיחה פנים מול פנים.",
-      "Try a short drive or walk rather than a face-to-face talk.",
-    ],
-    script: [
-      '"אני לא צריכה תשובה עכשיו. חשוב לי שתדע/י שאני זמינה."',
-      "“You don’t need to answer now. I want you to know I’m available.”",
-    ],
-    question: [
-      ["זה חדש", "זה דפוס מתמשך", "This is new", "This has been going on"],
-    ],
-    advice: [
-      [
-        "התעניינו בעדינות בשינוי האחרון ובהרגשה הכללית.",
-        "חפשו רגעי חיבור ללא דרישה לחשיפה, ושקלו ייעוץ אם עולה דאגה.",
-        "Gently explore what changed and how they are feeling.",
-        "Create connection without pressuring disclosure; seek professional support if worried.",
-      ],
-    ],
+    uyari: "İçe kapanmaya uyku ve iştah değişikliği, okuldan kopma, umutsuzluk ya da kendine zarar verme sözleri eşlik ediyorsa beklemeden bir çocuk ve ergen ruh sağlığı uzmanına başvurun.",
   },
 ];
-const labels = {
-  he: {
-    home: "בית",
-    scenarios: "סיטואציות",
-    learn: "להבין",
-    tools: "ערכת כלים",
-    mine: "הצעדים שלי",
-    privacy: "פרטיות ובטיחות",
-    disclaimer: "מידע חינוכי בלבד · לא תחליף לאבחון או לטיפול",
-  },
-  en: {
-    home: "Home",
-    scenarios: "Situations",
-    learn: "Learn",
-    tools: "Toolkit",
-    mine: "My steps",
-    privacy: "Privacy & safety",
-    disclaimer: "Educational guidance only · not diagnosis or treatment",
-  },
-};
-const guideMap = {
-  morning: "c7",
-  homework: "c7",
-  screens: "c10",
-  overwhelm: "c1",
-  teacher: "c8",
-  friends: "c9",
-  school: "c6",
-  teen: "c9",
-};
-function title(s) {
-  return esc(s.title[state.lang === "he" ? 0 : 1]);
-}
-function field(s, key) {
-  const v = s[key];
-  return esc(Array.isArray(v) ? v[state.lang === "he" ? 0 : 1] : v);
-}
-function iconCard(s) {
-  return `<article class="card clickable" data-scenario="${s.id}" tabindex="0" role="button" aria-label="${title(s)}"><div class="iconbox" aria-hidden="true">${s.emoji}</div><h3>${title(s)}</h3><p>${field(s, "desc")}</p><span class="bottom">${t("בואו נתחיל בצעד אחד ←", "Explore one small step →")}</span></article>`;
-}
-// Closed choices only: no scenario, saved steps, identifiers or personal text.
-const pilotQuestions = [
-  ["relevance", "מצאתם סיטואציה רלוונטית?", "Did you find a relevant situation?", [["yes","כן","Yes"],["partly","חלקית","Partly"],["no","לא","No"]]],
-  ["action", "הצלחתם לבצע צעד שהוצע?", "Were you able to carry out a suggested step?", [["yes","כן","Yes"],["partly","חלק ממנו","Part of it"],["no","ניסיתי ולא הצלחתי","Tried, but could not"],["not_yet","עוד לא ניסיתי","Have not tried yet"]]],
-  ["return", "תרצו להשתמש באפליקציה שוב?", "Would you use the app again?", [["yes","כן","Yes"],["maybe","אולי","Maybe"],["no","לא","No"]]],
-  ["barrier", "איפה היה קשה? (לא חובה)", "Where was it difficult? (optional)", [["skip","מעדיפים לא לענות","Prefer not to answer"],["none","לא היה קושי","No difficulty"],["finding","למצוא סיטואציה","Finding a situation"],["understanding","להבין את ההצעה","Understanding the suggestion"],["adapting","להתאים את הצעד","Adapting the step"],["trying","לבצע בבית","Trying it at home"],["saving","לשמור או לחזור לצעד","Saving or revisiting"],["technical","תקלה טכנית","Technical problem"]]]
-];
-function pilotFeedbackText(values) {
-  if (values.consent !== "yes") return null;
-  const lines = [];
-  for (const [key, he, en, options] of pilotQuestions) {
-    const choice = options.find(([id]) => id === (values[key] || (key === "barrier" ? "skip" : "")));
-    if (!choice) return null;
-    lines.push(`${he} / ${en}: ${choice[1]} / ${choice[2]}`);
-  }
-  return "How-to-ADHD | Pilot feedback v1\n" + lines.join("\n");
-}
-function openPilotFeedback() {
-  modal({heading:t("משוב קצר לפיילוט", "Short pilot feedback"),body:`<p>${t("לא נבקש שמות, פרטי ילדים או מידע רפואי. התשובות אינן נשמרות. אפשר לסגור בכל רגע.", "No names, child details or medical information. Answers are not saved. You can close at any time.")}</p><form id="pilotForm">${pilotQuestions.map(([key,he,en,options])=>`<fieldset><legend>${t(he,en)}</legend>${options.map(([id,h,e])=>`<label class="pilot-choice"><input type="radio" name="${key}" value="${id}" ${key !== "barrier" ? "required" : ""}> ${t(h,e)}</label>`).join("")}</fieldset>`).join("")}<p class="mini-copy">${t("יועתקו רק התשובות שסימנתם וכותרת גרסת המשוב. לא מצורפים הסיטואציה, הצעדים השמורים או פרטי המכשיר. ההעתקה אינה שליחה.", "Only selected answers and the feedback version heading are copied. No situation, saved steps or device details are attached. Copying does not send anything.")}</p><label class="pilot-choice"><input type="checkbox" name="consent" value="yes" required> ${t("אני מסכימ/ה להעתיק את התשובות המסומנות כדי לשתף אותן עם צוות הפיילוט.", "I consent to copy the selected answers to share with the pilot team.")}</label><button type="button" class="btn primary" data-action="copyFeedback">${t("העתקת התשובות שסימנתי", "Copy my selected answers")}</button><p id="feedbackStatus" role="status"></p></form><p class="mini-copy">${t("לאחר ההעתקה אפשר להדביק בשיחה עם מי שהזמין אתכם לפיילוט. שירות ההודעות עשוי לזהות אתכם; המשוב אינו מובטח כאנונימי.", "After copying, paste into your conversation with your pilot organizer. Your messaging service may identify you; feedback is not guaranteed anonymous.")}</p>`});
-}
-function bridgetGuide() {
-  const detail = state.view === "detail";
-  const stage = state.view === "mine" ? 4 : detail ? (state.stepMode !== "normal" || state.followQuestion !== null ? 3 : 2) : state.view === "home" ? 0 : 1;
-  const messages = [
-    ["אני ברידג׳ט. נתחיל ברגע אחד, ונמצא צעד קטן שאפשר לנסות. אתם בוחרים את הקצב.", "I’m Bridget. We’ll start with one moment and find a small step to try. You set the pace."],
-    ["נבחר סיטואציה שמוכרת לכם. אפשר גם לחזור ולהחליף בחירה.", "Choose a familiar situation. You can always go back and choose another."],
-    ["נקרא הצעה אחת. אם היא גדולה מדי, אפשר להקטין אותה או לבחור דרך אחרת.", "Read one suggestion. If it feels too big, make it smaller or try another way."],
-    ["מצאתם דרך שמתאימה יותר? אפשר לשמור ולנסות בזמן שנכון לכם.", "Found a better fit? Save it and try when the time feels right."],
-    ["אחרי ניסיון אפשר לחזור לצעד. גם ניסיון חלקי עוזר ללמוד. אם מתאים, שתפו במשוב קצר.", "Return after trying. A partial attempt also helps us learn. Share short feedback if you wish."]
-  ];
-  const names = [["בחירה","Choose"],["הצעה","Suggestion"],["התאמה","Adapt"],["ניסיון וחזרה","Try and revisit"]];
-  return `<aside class="bridget-guide" aria-label="${t("ברידג׳ט מלווה אתכם", "Bridget guides you")}"><img src="bridget-next-step.webp" width="80" height="100" alt=""><div><strong>${t("ברידג׳ט · צעד אחד בכל פעם", "Bridget · One step at a time")}</strong><p>${t(...messages[stage])}</p><ol class="journey">${names.map(([he,en],i)=>`<li ${i === Math.max(0,stage-1) ? 'aria-current="step"' : ''}>${t(he,en)}</li>`).join("")}</ol><div class="action-row"><button class="text-link" ${detail ? 'data-action="saveStep"' : 'data-view="scenarios"'}>${detail ? t("אשמור לנסות", "Save to try") : t("לבחירת סיטואציה", "Choose a situation")}</button><button class="text-link" data-action="pilotFeedback">${t("משוב קצר לפיילוט", "Short pilot feedback")}</button></div></div></aside>`;
+
+const KIP_AD = { adim: "adim", kucuk: "kucuk", baska: "baska" };
+function adimMetni(s, kip) {
+  return s[KIP_AD[kip] || "adim"];
 }
 
-function renderHome() {
-  const featured = [scenarios[0], scenarios[1], scenarios[2]];
-  return `<section class="hero"><div><span class="eyebrow">✦ ${t("מרחב חדש להורים · גרסת פיילוט", "A new space for parents · Pilot edition")}</span><h1>${t('פחות ״מה עושים עכשיו?״<br><span class="highlight">יותר צעד קטן קדימה.</span>', 'Less “what do I do now?”<br><span class="highlight">One small step forward.</span>')}</h1><p class="lead">${t("רגע קשה בבית? בוחרים מה קורה ומוצאים דבר אחד שאפשר לנסות. בלי שיפוטיות, בקצב שלכם.", "Practical tools for the moments when attention, emotions and everyday life collide. No judgment, no overwhelm — just one thing to try.")}</p><div class="hero-actions"><button class="btn primary" data-action="welcome">${t("בואו נמצא צעד ראשון ←", "Find my first step →")}</button><button class="text-link" data-action="bridgetTour">${t("קודם, סיבוב קצר עם ברידג׳ט", "First, a quick tour with Bridget")}</button></div><p class="hero-note">✓ ${t("לא צריך הרשמה · ללא הזנת פרטים על הילדים · 1–2 דקות לצעד ראשון", "No account · No child details required · 1–2 minutes to a first step")}</p></div><div class="bridget-scene"><div class="speech">${t("היי, אני ברידג׳ט ✨<br>מה הלאה?", "Hi, I’m Bridget ✨<br>What’s next?")}</div><img class="bridget bridget-picture" src="bridget-next-step.webp" alt="Bridget, your friendly guide, presenting the next step" width="500" height="625" loading="eager" decoding="async"></div></section><div class="section-head"><div><h2>${t("מוכר לכם מהבית?", "Does this feel familiar?")}</h2><p>${t("בחרו רגע אמיתי. נחשוב יחד על הצעד הבא.", "Choose a real moment. Find the next practical move.")}</p></div><button class="text-link" data-view="scenarios">${t("כל הסיטואציות ←", "See all situations →")}</button></div><div class="cards">${featured.map(iconCard).join("")}</div><section class="steps-band"><div><h3>${t("הדרך של Bridget: פחות לחשוב, יותר להתחיל", "The Bridget way: start, don’t spiral")}</h3><p>${t("כל דבר גדול מתחיל במהלך קטן, בהסכמה שלכם.", "Every big challenge begins with one consent-based action.")}</p></div><div class="mini-step"><strong>01</strong>${t("מבינים מה קורה", "Understand the moment")}</div><div class="mini-step"><strong>02</strong>${t("בוחרים פעולה אחת", "Choose one action")}</div><div class="mini-step"><strong>03</strong>${t("מנסים, לומדים, ממשיכים", "Try, learn, continue")}</div></section><div class="section-head"><div><h2>${t("לפעמים צריך רק משפט אחד טוב", "Sometimes one sentence helps")}</h2><p>${t("תרגול קצר, בלי ציונים ובלי מבחן", "A tiny rehearsal, no scores or judgment")}</p></div></div><div class="card clickable" role="button" tabindex="0" data-action="sim" style="min-height:145px;background:#eaf1ec;border-color:#d8e8db"><div class="iconbox" style="background:white">🎭</div><h3>${t("נסו שיחה לפני שהיא מתרחשת", "Practice a conversation before it happens")}</h3><p>${t("שתי תגובות אפשריות, והזדמנות לבחור מחדש.", "Two response options and a chance to try again.")}</p><span class="bottom">${t("נכנסים לתרגול ←", "Start practice →")}</span></div>`;
+/* ───────────── Kaynaklar ───────────── */
+const KAYNAK = {
+  daley2014: 'Daley D, van der Oord S, Ferrin M, ve ark. Behavioral interventions in attention-deficit/hyperactivity disorder: a meta-analysis of randomized controlled trials across multiple outcome domains. J Am Acad Child Adolesc Psychiatry. 2014;53(8):835-47. <a href="https://doi.org/10.1016/j.jaac.2014.05.013" target="_blank" rel="noopener">doi:10.1016/j.jaac.2014.05.013</a>',
+  daley2018: 'Daley D, Van Der Oord S, Ferrin M, ve ark. Practitioner Review: Current best practice in the use of parent training and other behavioural interventions in the treatment of children and adolescents with attention deficit hyperactivity disorder. J Child Psychol Psychiatry. 2018;59(9):932-947. <a href="https://doi.org/10.1111/jcpp.12825" target="_blank" rel="noopener">doi:10.1111/jcpp.12825</a>',
+  evans2018: 'Evans SW, Owens JS, Wymbs BT, Ray AR. Evidence-Based Psychosocial Treatments for Children and Adolescents With Attention Deficit/Hyperactivity Disorder. J Clin Child Adolesc Psychol. 2018;47(2):157-198. <a href="https://doi.org/10.1080/15374416.2017.1390757" target="_blank" rel="noopener">doi:10.1080/15374416.2017.1390757</a>',
+  faraone2021: 'Faraone SV, Banaschewski T, Coghill D, ve ark. The World Federation of ADHD International Consensus Statement: 208 Evidence-based conclusions about the disorder. Neurosci Biobehav Rev. 2021;128:789-818. <a href="https://doi.org/10.1016/j.neubiorev.2021.01.022" target="_blank" rel="noopener">doi:10.1016/j.neubiorev.2021.01.022</a>',
+  wolraich2019: 'Wolraich ML, Hagan JF, Allan C, ve ark. Clinical Practice Guideline for the Diagnosis, Evaluation, and Treatment of Attention-Deficit/Hyperactivity Disorder in Children and Adolescents. Pediatrics. 2019;144(4):e20192528. <a href="https://doi.org/10.1542/peds.2019-2528" target="_blank" rel="noopener">doi:10.1542/peds.2019-2528</a>',
+  nice: 'National Institute for Health and Care Excellence. Attention deficit hyperactivity disorder: diagnosis and management (NG87). <a href="https://www.nice.org.uk/guidance/ng87" target="_blank" rel="noopener">nice.org.uk/guidance/ng87</a>',
+  yonetmelik: 'Özel Eğitim Hizmetleri Yönetmeliği. Resmî Gazete, 7.7.2018, sayı 30471. Metin: <a href="https://aile.gov.tr/eyhgm/mevzuat/ulusal-mevzuat/yonetmelikler/ozel-egitim-hizmetleri-yonetmeligi/" target="_blank" rel="noopener">aile.gov.tr</a> (güncel hâli için mevzuat.gov.tr’ye bakın).',
+  alo183: 'T.C. Aile ve Sosyal Hizmetler Bakanlığı. ALO 183 Çağrı Merkezi. <a href="https://www.aile.gov.tr/alo-183/alo183pages/hakkinda/" target="_blank" rel="noopener">aile.gov.tr/alo-183</a>',
+};
+
+/* ───────────── Görünümler ───────────── */
+function kart(s) {
+  return `<button type="button" class="kart" data-senaryo="${s.id}"><span class="simge" aria-hidden="true">${s.simge}</span><span class="kart-govde"><strong>${kac(s.baslik)}</strong><span>${kac(s.ozet)}</span></span><span class="yas-rozet">${s.yas === "hepsi" ? "her yaş" : s.yas + " yaş"}</span></button>`;
 }
-function renderScenarios() {
-  const ages = [
-    ["all", t("כולם", "All ages")],
-    ["5-9", "5–9"],
-    ["10-13", "10–13"],
-    ["14-18", "14–18"],
-  ];
-  const term = state.search.toLocaleLowerCase();
-  const list = scenarios.filter(
-    (s) =>
-      (state.age === "all" || s.age === state.age || s.age === "all") &&
-      (!term ||
-        [...s.title, ...s.desc].join(" ").toLocaleLowerCase().includes(term)),
-  );
-  return `<section class="page-hero"><span class="eyebrow">${t("מספרים קטנים, רגעים גדולים", "Small steps, real life")}</span><h1 class="page-title">${t("מה קורה אצלכם עכשיו?", "What is happening right now?")}</h1><p class="page-subtitle">${t("לא חייבים למצוא הגדרה מדויקת. בחרו את מה שהכי קרוב.", "No perfect label needed. Pick what feels closest.")}</p><input id="searchScenario" class="search-box" type="search" placeholder="${t("חפשו: בוקר, מסכים, בית ספר...", "Search: mornings, screens, school...")}" value="${esc(state.search)}" aria-label="${t("חיפוש סיטואציות", "Search situations")}"><div class="chips">${ages.map(([v, l]) => `<button data-age="${v}" class="chip ${state.age === v ? "on" : ""}" aria-pressed="${state.age === v}">${l}</button>`).join("")}</div></section><div class="cards">${list.map(iconCard).join("") || `<div class="empty">${t("לא מצאנו התאמה. נסו מילה אחרת או הציגו את כל הגילים.", "No matching situation. Try another word or select all ages.")}</div>`}</div>`;
+
+function acilKutu() {
+  return `<aside class="acil" aria-label="Acil durum"><strong>Acil bir durum mu?</strong><ul><li>Can güvenliği tehlikesi ya da acil tıbbi durum: <a href="tel:112">112 Acil Çağrı Merkezi</a></li><li>İhmal, istismar ve şiddet bildirimi, aileye yönelik rehberlik: <a href="tel:183">ALO 183</a> (7 gün 24 saat, yurt içinden ücretsiz)</li></ul><p>Bu sayfa acil durumlar için tasarlanmamıştır.</p></aside>`;
 }
-function renderDetail() {
-  const s = scenarios.find((x) => x.id === state.scenario);
+
+function gorAna() {
+  return `<section class="giris"><p class="ust">Ebeveynler için · DEHB</p><h1>Bir sonraki küçük adım</h1><p class="lead">Dikkatin, duyguların ve gündelik hayatın çarpıştığı anlar için. Yargı yok, uzun liste yok: yaşadığınız duruma yakın olanı seçin, denenecek tek bir şey bulun.</p><div class="dugme-sira"><button class="btn ana" data-git="durumlar">Durumumu seç</button><button class="btn" data-eylem="prova">Önce bir konuşmayı prova et</button></div><p class="not">Hesap yok · Çocuğa ait bilgi istenmez · Hiçbir veri gönderilmez</p></section>
+  <div class="uyari-kutu" role="note"><strong>Bu sayfa tanı koymaz, tedavi önermez.</strong> Buradaki adımlar genel ebeveynlik önerileridir; çocuğunuzu izleyen hekimin ve öğretmenin yerini tutmaz. İlaç konusundaki her karar hekimle verilir.</div>
+  <h2 class="bolum-bas">Tanıdık geliyor mu?</h2><div class="kartlar">${senaryolar.slice(0, 4).map(kart).join("")}</div><p><button class="metin-bag" data-git="durumlar">Sekiz durumun hepsini gör →</button></p>
+  <section class="uc-adim"><div><strong>1</strong>Anı anlayın</div><div><strong>2</strong>Tek bir adım seçin</div><div><strong>3</strong>Deneyin, bakın, sürdürün</div></section>
+  ${acilKutu()}`;
+}
+
+function gorDurumlar() {
+  const yaslar = [["hepsi", "Her yaş"], ["5-9", "5-9"], ["10-13", "10-13"], ["14-18", "14-18"]];
+  const terim = durum.arama.toLocaleLowerCase("tr");
+  const liste = senaryolar.filter((s) => (durum.yas === "hepsi" || s.yas === durum.yas || s.yas === "hepsi") && (!terim || (s.baslik + " " + s.ozet).toLocaleLowerCase("tr").includes(terim)));
+  return `<section class="sayfa-bas"><h1>Şu anda ne oluyor?</h1><p>Kusursuz bir etiket gerekmez. En yakın geleni seçin.</p><input id="ara" class="ara" type="search" placeholder="Ara: sabah, ekran, okul…" value="${kac(durum.arama)}" aria-label="Durumlarda ara"><div class="cipler" role="group" aria-label="Yaş">${yaslar.map(([v, l]) => `<button type="button" class="cip${durum.yas === v ? " acik" : ""}" data-yas="${v}" aria-pressed="${durum.yas === v}">${l}</button>`).join("")}</div></section><div class="kartlar" id="kart-liste">${liste.map(kart).join("") || '<p class="bos">Eşleşen durum yok. Başka bir sözcük deneyin ya da “Her yaş”ı seçin.</p>'}</div>`;
+}
+
+function gorDetay() {
+  const s = senaryolar.find((x) => x.id === durum.senaryo);
   if (!s) {
-    state.view = "scenarios";
-    return renderScenarios();
+    durum.gorunum = "durumlar";
+    return gorDurumlar();
   }
-  const opts = s.question[0];
-  const ans = s.advice[0];
-  let chosen = state.followQuestion;
-  const guidance =
-    chosen === null
-      ? ""
-      : `<div class="inline-feedback">${esc(ans[state.lang === "he" ? chosen : chosen + 2])}</div>`;
-  return `<div class="detail-wrap"><button class="back" data-view="scenarios">${t("→ חזרה לכל הסיטואציות", "← Back to situations")}</button><article class="detail"><span class="eyebrow">${t("צעד אחד, בקצב שלכם", "One step, your pace")}</span><h1>${s.emoji} ${title(s)}</h1><p class="summary">${field(s, "desc")}</p><p class="hint">${field(s, "why")}</p><section class="step-panel" aria-label="${t("הצעד הבא", "Next step")}"><div class="tag">✳ Bridget · ${t("מה אפשר לנסות עכשיו", "What to try next")}</div><h2>${field(s, state.stepMode === "small" ? "small" : state.stepMode === "alternative" ? "alternative" : "step")}</h2><div class="script"><strong>${t("משפט שאפשר לומר:", "Words you can use:")}</strong><br>${field(s, "script")}</div><div class="action-row"><button class="btn secondary" data-action="stepMode" data-mode="small">${t("תעשו את זה קטן יותר", "Make it smaller")}</button><button class="btn secondary" data-action="stepMode" data-mode="alternative">${t("אפשרות אחרת", "Try another way")}</button><button class="btn primary" data-action="saveStep">${t("אשמור לנסות", "Save to try")}</button></div></section>${s.risk ? `<div class="callout">${field(s, "risk")}</div>` : ""}<section class="question-box"><h3>${t("שאלה אחת שיכולה לדייק את הצעד", "One question to personalize the next step")}</h3><div class="choice-list"><button class="choice ${chosen === 0 ? "on" : ""}" data-choice="0">${esc(opts[state.lang === "he" ? 0 : 2])}</button><button class="choice ${chosen === 1 ? "on" : ""}" data-choice="1">${esc(opts[state.lang === "he" ? 1 : 3])}</button></div>${guidance}</section><aside class="learn-bridge"><span>◎</span><div><strong>${t("רוצים להבין למה זה קורה?", "Want to understand why this happens?")}</strong><p>${t("פתחו את הפרק המתאים במדריך החזותי וחזרו לכאן כשתרצו לפעול.", "Open the matching visual chapter, then return here when you are ready to act.")}</p></div><a class="btn secondary" href="guide.html#${guideMap[s.id]}">${t("להסבר ולתרשים", "Read and see the diagram")}</a></aside><div class="action-row"><button class="btn ghost" data-action="copyScript">${t("העתיקו משפט לשימוש", "Copy the sentence")}</button><button class="btn ghost" data-action="shareCare">${t("הכינו סיכום לשיתוף", "Prepare caregiver summary")}</button><button class="btn ghost" data-action="done">${t("ניסינו — סגרו לולאה ✓", "Tried it — close the loop ✓")}</button></div></article></div>`;
+  const kipEtiket = { adim: "Denenecek adım", kucuk: "Daha küçük hâli", baska: "Başka bir yol" };
+  const yanit = durum.secim === null ? "" : `<p class="yanit">${kac(s.yanit[durum.secim])}</p>`;
+  return `<div class="detay"><button class="geri" data-git="durumlar">← Durumlar</button><article><h1><span aria-hidden="true">${s.simge}</span> ${kac(s.baslik)}</h1><p class="ozet">${kac(s.ozet)}</p><p class="neden"><strong>Neden olabilir:</strong> ${kac(s.neden)}</p>
+  <section class="adim-kutu" aria-live="polite"><p class="etiket">${kipEtiket[durum.kip]}</p><h2>${kac(adimMetni(s, durum.kip))}</h2><p class="cumle"><strong>Kullanabileceğiniz söz:</strong><br>${kac(s.cumle)}</p><div class="dugme-sira"><button class="btn${durum.kip === "kucuk" ? " secili" : ""}" data-kip="kucuk">Daha küçük yap</button><button class="btn${durum.kip === "baska" ? " secili" : ""}" data-kip="baska">Başka bir yol</button>${durum.kip !== "adim" ? '<button class="btn" data-kip="adim">İlk öneri</button>' : ""}<button class="btn ana" data-eylem="kaydet">Denemek üzere kaydet</button></div></section>
+  ${s.uyari ? `<p class="uyari-kutu"><strong>Ne zaman başka yardım:</strong> ${kac(s.uyari)}</p>` : ""}
+  <section class="soru-kutu"><h3>Adımı size uyarlamak için tek soru</h3><div class="secenekler"><button type="button" class="secenek${durum.secim === 0 ? " acik" : ""}" data-secim="0" aria-pressed="${durum.secim === 0}">${kac(s.soru[0])}</button><button type="button" class="secenek${durum.secim === 1 ? " acik" : ""}" data-secim="1" aria-pressed="${durum.secim === 1}">${kac(s.soru[1])}</button></div>${yanit}</section>
+  ${s.okul ? '<p class="kopru">Okulla birlikte çalışmanın Türkiye’deki yolları: <button class="metin-bag" data-git="okul">Okul ve RAM →</button></p>' : ""}
+  <div class="dugme-sira"><button class="btn" data-eylem="kopyala">Sözü kopyala</button><button class="btn" data-eylem="ozet">Bakım veren için özet hazırla</button></div>
+  <p class="dipnot">Bu adımlar davranışsal ebeveyn eğitimi programlarında kullanılan genel ilkelere dayanır (tek ve açık yönerge, işi küçültme, seçenek sunma, sakin anda planlama). Tek tek adımlar ayrı ayrı sınanmış tedaviler değildir. Ayrıntı: <button class="metin-bag" data-git="anla">Kanıt ne diyor?</button></p></article></div>`;
 }
-function renderLearn() {
-  const topics = [
-    ["🌧️", "ויסות רגשי וחושי", "Emotional and sensory regulation", "c1"],
-    ["🧠", "תפקודים ניהוליים", "Executive functions", "c7"],
-    ["🏫", "למידה ובית הספר", "Learning and school", "c8"],
-    ["🌱", "חוסן, קשר וגבולות", "Resilience, connection and boundaries", "c9"],
-    ["🩺", "טיפול ותרופות", "Treatment and medication", "c3"],
-    ["🧩", "כשיש קושי נוסף", "When something else may be present", "c6"],
+
+function gorAnla() {
+  const konular = [
+    ["🧭", "Kanıt ne diyor: ebeveyn eğitimi neyi değiştirir?", `<p>Davranışsal ebeveyn eğitimi, DEHB’de önerilen ilaç dışı yaklaşımların başında gelir. 32 randomize çalışmayı birleştiren bir meta-analizde, değerlendiricinin hangi grupta olduğunu büyük olasılıkla bilmediği ölçümlerde ebeveynlik uygulamaları düzeldi ve davranım sorunları azaldı; DEHB’nin çekirdek belirtilerindeki azalma ise bu kör ölçümlerde gösterilemedi (Daley ve ark. 2014).</p><p>Bunun ebeveyn için anlamı şudur: bu sayfadaki türden adımlardan beklenmesi gereken, dikkat süresinin uzaması değil, evdeki çatışmanın azalması ve gündelik işlerin daha az sürtünmeyle yürümesidir. Uzman derlemesi ebeveyn eğitimini çok bileşenli tedavinin önemli bir parçası sayar, ama çekirdek belirtiler için tek başına birinci basamak tedavi olarak desteklemez (Daley ve ark. 2018).</p>`],
+    ["🧠", "DEHB hakkında yanlış bilinenler", `<p>Dünya DEHB Federasyonu’nun uluslararası uzlaşı bildirisi, bozukluk hakkındaki yanlış inanışların damgalamaya yol açtığını ve tedaviyi geciktirdiğini belirtir; 27 ülkeden 80 yazarın onayladığı 208 kanıta dayalı sonucu bir araya getirir (Faraone ve ark. 2021).</p><p>Gündelik dile çevrilirse: başlayamamak, unutmak, yerinde duramamak çoğu zaman “istemiyor” değil, “o anda yapamıyor” demektir. Bu ayrım davranışı mazur göstermez; hangi desteğin işe yarayacağını gösterir.</p>`],
+    ["🩺", "Tedavi ve ilaç", `<p>Tedavi planını çocuğu değerlendiren hekim, aileyle birlikte yapar. Amerikan Pediatri Akademisi’nin kılavuzu yaşa göre farklı öneriler verir: okul öncesi çocuklarda ilk seçenek davranış yönetimine yönelik ebeveyn eğitimidir; okul çağında ilaç tedavisi ebeveyn eğitimi ve sınıf içi davranışsal düzenlemelerle birlikte önerilir; ergenlerde ilaç kararı gencin onayıyla verilir (Wolraich ve ark. 2019). İngiltere’nin NICE kılavuzu da tanı ve tedavi için kapsamlı öneriler sunar (NICE NG87).</p><p>Bu kılavuzlar başka ülkelerin sağlık sistemleri için yazılmıştır. Çocuğunuz için doğru olan, onu tanıyan hekimin kararıdır. İlaca başlamak, dozu değiştirmek ya da ilacı kesmek için hekime danışmadan adım atmayın.</p>`],
+    ["🏫", "Okulda ne işe yarar?", `<p>Psikososyal tedavileri kanıt düzeyine göre sınıflayan sistematik derleme, bulguların çocuğun yaşına ve yaklaşımın özelliklerine göre değiştiğini; çalışmalara katılan ailelerde eğitim düzeyi yüksek ebeveynlerin fazla temsil edildiğini belirtir (Evans ve ark. 2018). Sınıf içi davranış yönetimi ve organizasyon becerilerine yönelik eğitim, bu alanda en çok çalışılan yaklaşımlar arasındadır.</p><p>Uygulamadaki karşılığı sadedir: öğretmenle tek bir hedefte anlaşmak, o hedefi her gün kısaca izlemek ve bir hafta sonra birlikte bakmak. Türkiye’deki resmî yollar için <button class="metin-bag" data-git="okul">Okul ve RAM</button> sayfasına bakın.</p>`],
+    ["🧩", "Yanında başka bir şey olabilir mi?", `<p>DEHB’ye kaygı, öğrenme güçlüğü, uyku sorunu ya da duygudurum belirtileri eşlik edebilir. Amerikan Pediatri Akademisi kılavuzunun son güncellemesi, eşlik eden durumların tanınması ve tedavisi için ayrı bir öneri eklemiştir (Wolraich ve ark. 2019).</p><p>Okul reddi, belirgin içe kapanma, yeni başlayan öfke patlamaları ya da derslerde ani düşüş, “DEHB’dendir” denip geçilmemesi gereken durumlardır. Bunları çocuğu izleyen hekime anlatın.</p>`],
+    ["🚩", "Ne zaman beklemeden başvurmalı?", `<ul><li>Kendine ya da başkasına zarar verme sözü ya da davranışı</li><li>Haftalardır süren okula gitmeme</li><li>Uyku, iştah ya da enerjide belirgin ve süren değişiklik</li><li>İstismar, ihmal ya da zorbalık kuşkusu</li><li>İlaç kullanan çocukta yeni ve rahatsız edici bir belirti</li></ul><p>Bu durumlarda bir çocuk ve ergen ruh sağlığı uzmanına başvurun; can güvenliği tehlikesi varsa 112’yi arayın.</p>`],
   ];
-  return `<section class="page-hero"><span class="eyebrow">${t("להבין לעומק · בלי ללכת לאיבוד", "Learn more · without getting lost")}</span><h1 class="page-title">${t("בחרו נושא אחד שמעסיק אתכם", "Choose one topic that matters now")}</h1><p class="page-subtitle">${t("המדריך החזותי מרכז ידע, תרשימים ופעולות שאפשר לנסות בבית. כל כרטיס פותח ישר בפרק הרלוונטי.", "The visual guide combines knowledge, diagrams and practical actions. Each card opens the relevant chapter.")}</p></section><div class="knowledge-grid">${topics.map(([icon, he, en, id]) => `<a class="knowledge-card" href="guide.html#${id}"><span>${icon}</span><strong>${t(he, en)}</strong><small>${t("פתיחת הפרק ←", "Open chapter →")}</small></a>`).join("")}</div><section class="deep-actions"><div><span class="eyebrow">${t("מוכנים לעשות", "Ready to practice")}</span><h2>${t("להפוך הבנה לפעולה", "Turn understanding into action")}</h2><p>${t("עברו לזירת התרגול המלאה עם אווטרים, תרחישים, החלפת תפקידים וכרטיס שאפשר לשתף.", "Open the full Practice Studio with avatars, scenarios, role switching and a shareable action card.")}</p></div><div class="hero-actions"><a class="btn primary" href="guide.html#practice-arena">${t("ל‑Practice Studio", "Open Practice Studio")}</a><a class="btn secondary" href="guide.html#pdf-toolbox">${t("לדפי העבודה להדפסה", "Printable action sheets")}</a></div></section>`;
+  return `<section class="sayfa-bas"><h1>Anla</h1><p>Kısa, kaynaklı altı başlık. İhtiyacınız olanı açın.</p></section><div class="konular">${konular.map(([ik, b, g], i) => `<details class="konu"${i === 0 ? " open" : ""}><summary><span aria-hidden="true">${ik}</span> ${b}</summary>${g}</details>`).join("")}</div>
+  <details class="konu kaynaklar"><summary>Kaynaklar</summary><ul>${["daley2014", "daley2018", "evans2018", "faraone2021", "nice", "wolraich2019"].map((k) => `<li>${KAYNAK[k]}</li>`).join("")}</ul><p>Dergi makalelerinin künyeleri PubMed kayıtlarıyla doğrulanmıştır.</p></details>`;
 }
-function renderTools() {
-  const resources = [
-    [
-      "CDC — ADHD",
-      "https://www.cdc.gov/adhd/",
-      "מידע בסיסי על ADHD, תמיכה וטיפול",
-      "ADHD information, support and treatment",
-    ],
-    [
-      "CHADD",
-      "https://chadd.org/",
-      "משאבים להורים ומשפחות",
-      "Resources for parents and families",
-    ],
-    [
-      "NICE guideline NG87",
-      "https://www.nice.org.uk/guidance/ng87",
-      "הנחיות מקצועיות בתחום ADHD",
-      "Clinical guidance on ADHD",
-    ],
-  ];
-  return `<section class="page-hero"><span class="eyebrow">${t("ערכת כלים", "A practical toolkit")}</span><h1 class="page-title">${t("לא כל בעיה צריכה פתרון ענק", "Not every problem needs a big fix")}</h1><p class="page-subtitle">${t("עקרונות קצרים שאפשר לקחת הביתה.", "Short, practical principles to try at home.")}</p></section><div class="cards"><article class="card"><div class="iconbox">⏳</div><h3>${t("כלל 90 השניות", "The 90-second start")}</h3><p>${t("מתחילים פעולה לזמן קצר, בלי לדרוש השלמה. ההתחלה היא ההצלחה הראשונה.", "Start for a short time without demanding completion. Starting is a first success.")}</p><button class="bottom" data-action="tool90">${t("פתחו תרגול ←", "Open an exercise →")}</button></article><article class="card"><div class="iconbox">🪜</div><h3>${t("מפרקים פעולה", "Make it smaller")}</h3><p>${t('במקום "תתארגן" — בוחרים תנועה אחת שאפשר לראות ולעשות.', "Replace “get ready” with one visible, doable movement.")}</p><button class="bottom" data-scenario="morning">${t("דוגמה מהבוקר ←", "Morning example →")}</button></article><article class="card"><div class="iconbox">💬</div><h3>${t("משפטי גישור", "Bridge sentences")}</h3><p>${t("מזהים רגש, מציעים שיתוף פעולה, ומשאירים מקום לבחירה.", "Name the feeling, invite collaboration, leave room for choice.")}</p><button class="bottom" data-scenario="teacher">${t("דוגמה לשיחה ←", "Conversation example →")}</button></article><article class="card"><div class="iconbox">🎭</div><h3>${t("Practice Studio", "Practice Studio")}</h3><p>${t("תרגול מלא עם אווטרים, תרחישים, החלפת תפקידים ומשוב.", "Full practice with avatars, scenarios, role switching and feedback.")}</p><a class="bottom" href="guide.html#practice-arena">${t("לזירת התרגול ←", "Open the studio →")}</a></article><article class="card"><div class="iconbox">🖨️</div><h3>${t("דפי פעולה להדפסה", "Printable action sheets")}</h3><p>${t("שישה דפים קצרים, כולל תכנית לשינוי התראות בטלפון יחד עם הילד.", "Six short sheets, including a child-inclusive phone notification plan.")}</p><a class="bottom" href="guide.html#pdf-toolbox">${t("לערכת ההדפסה ←", "Open printables →")}</a></article></div><div class="section-head"><div><h2>${t("להעמיק ממקורות מוכרים", "Explore established resources")}</h2><p>${t("קישורים למקורות חיצוניים; אינם מהווים המלצה אישית או ייעוץ רפואי.", "External resources; not personalized medical guidance.")}</p></div></div><div class="resources">${resources.map(([name, url, he, en]) => `<a href="${url}" target="_blank" rel="noopener noreferrer"><span>${name} ↗</span><small>${t(he, en)}</small></a>`).join("")}</div><div class="safe">${t("חשוב: האתר אינו כלי אבחון או טיפול. אם יש חשש לבטיחות, פגיעה, או מצוקה קשה, פנו לגורם מקצועי או לשירותי חירום מקומיים.", "Important: This site does not diagnose or treat. For safety concerns, harm, or severe distress, seek qualified help or local emergency services.")}</div>`;
+
+function gorOkul() {
+  return `<section class="sayfa-bas"><h1>Okul ve RAM</h1><p>Türkiye’de okulla birlikte çalışmanın resmî yolları. Aşağıdaki bilgiler Özel Eğitim Hizmetleri Yönetmeliği’ne dayanır; uygulama ilden ile ve okuldan okula değişebilir.</p></section>
+  <div class="konular">
+  <details class="konu" open><summary>1. Önce sınıf öğretmeni ve rehberlik servisi</summary><p>Çoğu güçlük resmî bir sürece gerek kalmadan, öğretmenle tek bir hedefte anlaşarak ele alınabilir. Görüşmeye tek bir gözlem ve tek bir istekle gidin; bir hafta sonra birlikte bakmayı önerin. Okulun rehberlik servisi bu görüşmeye katılabilir ve sınıf içi düzenlemeler konusunda öğretmene destek olabilir.</p></details>
+  <details class="konu"><summary>2. Rehberlik ve Araştırma Merkezi (RAM)</summary><p>Çocuğun eğitsel değerlendirmesi RAM’da yapılır. Yönetmeliğe göre başvuruyu okul yönetimi ya da veli yapabilir (Madde 7); başvuru belgeleri arasında bireyin, velisinin ya da okul yönetiminin yazılı talebi sayılır (Madde 8) ve değerlendirme sürecinde velinin görüşü alınır (Madde 7).</p><p>DEHB tanısı tek başına belirli bir eğitim hizmetini kendiliğinden getirmez. Hangi desteğin uygun olduğuna RAM’daki eğitsel değerlendirme sonunda karar verilir. Başvurudan önce çocuğu izleyen hekimle ve okulun rehberlik servisiyle konuşmak, sürecin gerekli olup olmadığını anlamanıza yardım eder.</p></details>
+  <details class="konu"><summary>3. Bireyselleştirilmiş Eğitim Programı (BEP)</summary><p>BEP, özel eğitim ihtiyacı olan öğrencinin gelişim özelliklerine, eğitim ihtiyaçlarına ve performansına göre hazırlanan, destek eğitim hizmetlerini de içeren programdır (Madde 4). İçeriğinde yıllık ve kısa dönemli amaçlar, destek eğitimin türü ve süresi, kullanılacak yöntemler ve ortam düzenlemeleri yer alır (Madde 20). Kaynaştırma ya da bütünleştirme yoluyla eğitim yapılan okullarda BEP geliştirme birimi kurulması zorunludur (Madde 22).</p><p>Yönetmelik, ailelerin özel eğitim sürecinin her aşamasına etkin katılımını temel ilkeler arasında sayar (Madde 5). BEP toplantısına katılmayı ve programın bir örneğini istemeyi çekinmeden dile getirin.</p></details>
+  <details class="konu"><summary>4. Destek eğitim odası</summary><p>Destek eğitim odası, tam zamanlı kaynaştırma ya da bütünleştirme yoluyla eğitim gören öğrencilere ihtiyaç duydukları alanlarda destek eğitim verilmesi için düzenlenen ortamdır (Madde 4). Çocuğunuz için uygun olup olmadığı BEP geliştirme biriminde konuşulur.</p></details>
+  <details class="konu"><summary>Öğretmen görüşmesi için tek sayfalık hazırlık</summary><ol><li><strong>Bir güçlü yan:</strong> çocuğunuzun iyi yaptığı tek bir şey.</li><li><strong>Bir gözlem:</strong> yorum katmadan, ne zaman ve ne oluyor.</li><li><strong>Bir istek:</strong> bir hafta denenecek tek bir düzenleme.</li><li><strong>Bir gösterge:</strong> işe yarayıp yaramadığını neye bakarak anlayacaksınız.</li><li><strong>Bir tarih:</strong> yeniden ne zaman konuşacaksınız.</li></ol><div class="dugme-sira"><button class="btn" data-eylem="hazirlik">Bu listeyi kopyala</button></div></details>
+  </div>
+  <details class="konu kaynaklar"><summary>Kaynak</summary><ul><li>${KAYNAK.yonetmelik}</li></ul><p>Madde numaraları yönetmeliğin Aile ve Sosyal Hizmetler Bakanlığı sitesindeki metninden alınmıştır (Kasım 2026). Yönetmelik sonradan değişmiş olabilir; işlem yapmadan önce güncel metne ve RAM’a danışın.</p></details>`;
 }
-function renderMine() {
-  return `<section class="page-hero"><span class="eyebrow">${t("המשך מעקב — רק אם בחרתם", "Follow-up — only if you choose")}</span><h1 class="page-title">${t("הצעדים שלי", "My next steps")}</h1><p class="page-subtitle">${t("המידע נשמר רק בדפדפן הזה. אין חשבון, ענן או הודעות תזכורת אוטומטיות.", "Stored only in this browser. No account, cloud sync or automatic notifications.")}</p></section>${
-    saved.length
-      ? `<div class="detail-wrap">${saved
-          .map((i) => {
-            const s = scenarios.find((x) => x.id === i.scenario);
-            if (!s) return "";
-            return `<article class="progress-item"><span class="pill">${i.status === "done" ? t("נוסה ✓", "Tried ✓") : t("מחכה לניסיון", "To try")}</span><h3>${title(s)}</h3><p>${field(s, i.mode === "small" ? "small" : i.mode === "alternative" ? "alternative" : "step")}</p><p><small>${esc(new Date(i.date).toLocaleDateString(state.lang === "he" ? "he-IL" : "en-US"))}</small></p><div class="small-actions"><button data-action="toggleSaved" data-id="${i.id}">${i.status === "done" ? t("להחזיר לרשימה", "Mark to retry") : t("ניסינו את זה ✓", "We tried it ✓")}</button><button data-action="revisit" data-id="${s.id}">${t("חזרה לסיטואציה", "Revisit")}</button><button data-action="removeSaved" data-id="${i.id}">${t("מחיקה", "Remove")}</button></div></article>`;
-          })
-          .join(
-            "",
-          )}</div><div class="action-row"><button class="btn secondary" data-action="export">${t("ייצוא הצעדים שלי", "Export my steps")}</button><button class="btn secondary" data-action="clear">${t("מחיקת הכול", "Delete all")}</button></div>`
-      : `<div class="empty"><div class="big">🌱</div><h2>${t("עדיין אין כאן צעדים. וזה בסדר.", "No saved steps yet — that is okay.")}</h2><p>${t("בחרו סיטואציה, מצאו פעולה קטנה ושמרו אותה אם תרצו.", "Choose a situation, find a small action, and save it if you want.")}</p><button class="btn primary" data-view="scenarios">${t("בוחרים צעד ראשון", "Choose a first step")}</button></div>`
-  }<section class="detail"><h2>${t("עזרו לנו ללמוד מהפיילוט", "Help improve the pilot")}</h2><p>${t("שלוש שאלות קצרות, רק אם מתאים לכם. אין שליחה אוטומטית.", "Three short questions, only if you wish. Nothing is sent automatically.")}</p><button class="btn secondary" data-action="pilotFeedback">${t("משוב קצר", "Short feedback")}</button></section>`;
-}
-function toast(msg) {
-  if (!IS_BROWSER) return;
-  const el = document.getElementById("toast");
-  el.textContent = msg;
-  el.classList.add("show");
-  clearTimeout(toast.timer);
-  toast.timer = setTimeout(() => el.classList.remove("show"), 3300);
-}
-function thoughtAnchor() {
-  const notes = [
-    [
-      "מחשבות הן כמו עננים: אחת מגיעה, משתהה לרגע ומפנה מקום לבאה.",
-      "Thoughts are like clouds: one arrives, stays for a moment, then makes room for the next.",
-    ],
-    [
-      "מחשבות גדלות כשמטפחים אותן. בואו נטפח את אלה שמרגיעות ומחזקות.",
-      "Thoughts grow when we feed them. Let’s feed the ones that calm and strengthen us.",
-    ],
-    [
-      "תדברי אלייך יפה. גם את לומדת תוך כדי.",
-      "Speak kindly to yourself. You are learning as you go.",
-    ],
-  ];
-  const index =
-    Math.max(
-      0,
-      ["home", "scenarios", "detail", "learn", "tools", "mine"].indexOf(
-        state.view,
-      ),
-    ) % notes.length;
-  return `<aside class="thought-anchor" aria-label="${t("תזכורת קטנה", "A small reminder")}"><span aria-hidden="true">☁</span><p>${t(notes[index][0], notes[index][1])}</p></aside>`;
-}
-function render() {
-  document.documentElement.lang = state.lang;
-  document.documentElement.dir = state.lang === "he" ? "rtl" : "ltr";
-  document.title = "How to ADHD | " + t("צעד אחד קדימה", "One step forward");
-  document.getElementById("lang").textContent =
-    state.lang === "he" ? "EN" : "עברית";
-  document.getElementById("brandline").textContent = t(
-    "צעד קטן. שינוי גדול.",
-    "Small steps. Real change.",
-  );
-  document.getElementById("privacyBtn").textContent = t(
-    "פרטיות ובטיחות",
-    "Privacy & safety",
-  );
-  document.getElementById("footerNote").textContent =
-    labels[state.lang].disclaimer;
-  document.getElementById("openTab").textContent = t("ברידג׳ט", "Bridget");
-  document.getElementById("floatTab").textContent = t("ברידג׳ט", "Bridget");
-  document.getElementById("floatTab").setAttribute("aria-label", t("עזרה עם ברידג׳ט", "Help with Bridget"));
-  document.querySelectorAll("[data-view]").forEach((n) => {
-    if (n.closest("nav"))
-      n.classList.toggle("selected", n.dataset.view === state.view);
-    if (n.closest("nav")) {
-      n.setAttribute(
-        "aria-current",
-        n.dataset.view === state.view ? "page" : "false",
-      );
-    }
-  });
-  const navs = document.querySelectorAll(".nav button,.bottom-nav button");
-  for (const n of navs) {
-    const span = n.querySelector("small");
-    if (span) span.textContent = labels[state.lang][n.dataset.view] || "";
-    else n.textContent = labels[state.lang][n.dataset.view] || "";
+
+function gorAdimlarim() {
+  if (!kayitli.length) {
+    return `<section class="sayfa-bas"><h1>Adımlarım</h1><p>Yalnızca bu tarayıcıda saklanır. Hesap, bulut eşitlemesi ya da bildirim yoktur.</p></section><div class="bos-kutu"><p class="buyuk" aria-hidden="true">🌱</p><h2>Henüz kaydedilmiş adım yok</h2><p>Bir durum seçin, küçük bir adım bulun, isterseniz kaydedin.</p><button class="btn ana" data-git="durumlar">İlk adımı seç</button></div>`;
   }
-  const main = document.getElementById("main");
-  main.innerHTML = bridgetGuide() +
-    (state.view === "home"
-      ? renderHome()
-      : state.view === "scenarios"
-        ? renderScenarios()
-        : state.view === "detail"
-          ? renderDetail()
-          : state.view === "learn"
-            ? renderLearn()
-            : state.view === "tools"
-              ? renderTools()
-              : renderMine()) + thoughtAnchor();
-  if (state.view === "home") {
-    const scene = main.querySelector(".bridget-scene");
-    if (scene)
-      scene.insertAdjacentHTML(
-        "beforeend",
-        `<button class="bridget-invite" data-action="bridgetTour"><span class="bridget-arrow" aria-hidden="true">←</span><strong>${t("תראי לי", "Bridget, show me")}</strong><small>${t("מסע קצר של פחות מדקה", "A tour under one minute")}</small></button>`,
-      );
+  return `<section class="sayfa-bas"><h1>Adımlarım</h1><p>Yalnızca bu tarayıcıda saklanır. Bu tarayıcıya erişen herkes görebilir; çocuğun adını ya da sağlık bilgisini yazmanız gerekmez.</p></section><div class="adim-liste">${kayitli.map((k) => {
+    const s = senaryolar.find((x) => x.id === k.senaryo);
+    if (!s) return "";
+    return `<article class="adim-satir"><span class="rozet${k.durum === "denendi" ? " tamam" : ""}">${k.durum === "denendi" ? "Denendi ✓" : "Denenecek"}</span><h3>${kac(s.baslik)}</h3><p>${kac(adimMetni(s, k.kip))}</p><p class="tarih">${kac(new Date(k.tarih).toLocaleDateString("tr-TR"))}</p><div class="dugme-sira kucuk"><button class="btn" data-eylem="degistir" data-id="${kac(k.id)}">${k.durum === "denendi" ? "Yeniden denenecek" : "Denedik ✓"}</button><button class="btn" data-senaryo="${s.id}">Duruma dön</button><button class="btn" data-eylem="sil" data-id="${kac(k.id)}">Kaldır</button></div></article>`;
+  }).join("")}</div><div class="dugme-sira"><button class="btn" data-eylem="disa">Adımlarımı kopyala</button><button class="btn" data-eylem="temizle">Hepsini sil</button></div>`;
+}
+
+/* ───────────── Prova: kısa, dallanan alıştırma ───────────── */
+function provaGovde() {
+  let g = '<p>Kısa prova: ödev başlamıyor. Bir yanıt seçin, sonra ne olabileceğine bakın. Puan yok, doğru yanıt sınavı değil.</p>';
+  if (durum.prova === 0) {
+    g += '<div class="replik"><span aria-hidden="true">🧑‍🎓</span><p><strong>Çocuk:</strong> “Yapmayacağım! Çok fazla.”</p></div><div class="secenekler dik"><button type="button" class="secenek" data-prova="1">“Tartışmayı bırak ve hemen başla.”</button><button type="button" class="secenek" data-prova="2">“Yalnızca defteri birlikte açsak olur mu?”</button></div>';
+  } else if (durum.prova === 1) {
+    g += `<div class="replik"><span aria-hidden="true">🧑‍🎓</span><p>${durum.provaSecim === 1 ? "“Ne kadar zor olduğunu anlamıyorsun!”" : "“Tamam, ama yalnızca açacağım.”"}</p></div><p class="yanit">${durum.provaSecim === 1 ? "Gerginlik yükseldiğinde isteği küçültmeyi ve ilişkiyi onarmayı deneyin. Bu olası bir yanıttır, bir öngörü değildir." : "Küçük bir istek bir başlangıç noktası sunar. İş birliğini garanti etmez."}</p><div class="dugme-sira"><button class="btn ana" data-eylem="provaSon">Sonra ne olur?</button><button class="btn" data-eylem="provaBas">Öteki yanıtı dene</button></div>`;
+  } else {
+    g += `<p class="yanit">${durum.provaSecim === 1 ? "Onarmak için bir cümle yeter: “Az önce sert konuştum. Yeniden deneyelim: yalnızca defteri açalım.” Ebeveynin geri adım atması otoriteyi zayıflatmaz; çocuğa onarmanın nasıl yapıldığını gösterir." : "Defter açıldıysa durun ve bunu görün: “Açtın, başladık.” Sonraki adımı ondan isteyin: “Hangi sorudan başlayalım?” Bugün tek soruyla bitse de başlangıç kurulmuştur."}</p><div class="dugme-sira"><button class="btn" data-eylem="provaBas">Baştan dene</button><button class="btn ana" data-senaryo="odev">“Ödev başlamıyor” durumuna git</button></div>`;
+  }
+  return g;
+}
+
+function gizlilikGovde() {
+  return `<h3>Denetim sizde</h3><p>Hesap gerekmez. Kaydettiğiniz adımlar yalnızca bu tarayıcıda (localStorage) durur. Hiçbir içerik bir sunucuya, yapay zekâ modeline, e-postaya ya da istatistik hizmetine gönderilmez. Paylaşım yalnızca siz genel bir özeti kopyalamayı seçtiğinizde olur.</p><p>Çocuğun adını, kimliğini belli edecek bilgileri ya da sağlık ayrıntılarını yazmanız gerekmez. Bu tarayıcıya erişen herkes kaydedilen adımları görebilir; site verilerini temizlemek onları siler.</p><h3>Ne zaman başka yerden yardım</h3><p>Bu sayfa eğitim amaçlı, uygulamaya dönük bir içeriktir; tanı, terapi ya da hekim muayenesi değildir. Buradaki bilgilerden tanı çıkarmayın. Can güvenliği tehlikesinde 112’yi arayın. İhmal, istismar ya da şiddet kuşkusunda ALO 183’e başvurabilirsiniz. Süren ve ağır bir sıkıntıda bir çocuk ve ergen ruh sağlığı uzmanına başvurun.</p>`;
+}
+
+/* ───────────── Çizim ve gezinme ───────────── */
+const GORUNUM = { ana: gorAna, durumlar: gorDurumlar, detay: gorDetay, anla: gorAnla, okul: gorOkul, adimlarim: gorAdimlarim };
+const BASLIK = { ana: "DEHB’de Bir Sonraki Adım", durumlar: "Durumlar", detay: "Durum", anla: "Anla", okul: "Okul ve RAM", adimlarim: "Adımlarım" };
+
+function ciz(odakla) {
+  const ana = document.getElementById("ana");
+  ana.innerHTML = (GORUNUM[durum.gorunum] || gorAna)();
+  for (const b of document.querySelectorAll("[data-gez]")) {
+    const acik = b.dataset.gez === durum.gorunum || (durum.gorunum === "detay" && b.dataset.gez === "durumlar");
+    b.classList.toggle("acik", acik);
+    if (acik) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  }
+  document.title = (durum.gorunum === "ana" ? "" : BASLIK[durum.gorunum] + " · ") + "DEHB’de Bir Sonraki Adım";
+  if (odakla) {
+    window.scrollTo(0, 0);
+    ana.focus({ preventScroll: true });
   }
 }
-function navigate(view) {
-  state.view = view;
-  state.followQuestion = null;
-  state.stepMode = "normal";
-  if (IS_BROWSER && location.hash !== `#${view}`)
-    history.pushState(null, "", `#${view}`);
-  render();
-  window.scrollTo({ top: 0, behavior: "instant" });
+
+function git(gorunum, itme = true) {
+  durum.gorunum = GORUNUM[gorunum] ? gorunum : "ana";
+  if (durum.gorunum !== "detay") durum.senaryo = null;
+  if (itme) {
+    try {
+      history.pushState(null, "", "#" + (durum.gorunum === "detay" ? "durum-" + durum.senaryo : durum.gorunum));
+    } catch {}
+  }
+  ciz(true);
 }
-function openScenario(id) {
-  if (!scenarios.some((s) => s.id === id)) return;
-  state.scenario = id;
-  navigate("detail");
+
+function senaryoAc(id, itme = true) {
+  if (!senaryolar.some((s) => s.id === id)) return git("durumlar", itme);
+  durum.senaryo = id;
+  durum.kip = "adim";
+  durum.secim = null;
+  kapat();
+  durum.gorunum = "detay";
+  if (itme) {
+    try {
+      history.pushState(null, "", "#durum-" + id);
+    } catch {}
+  }
+  ciz(true);
 }
-function copyText(text) {
-  if (navigator.clipboard && window.isSecureContext)
-    return navigator.clipboard
-      .writeText(text)
-      .then(() =>
-        toast(
-          t(
-            "הועתק. אתם בוחרים למי לשתף.",
-            "Copied. You choose who to share with.",
-          ),
-        ),
-      )
-      .catch(() => fallbackCopy(text));
-  fallbackCopy(text);
+
+function adrestenOku() {
+  const h = decodeURIComponent(location.hash.replace(/^#/, ""));
+  if (h.startsWith("durum-")) senaryoAc(h.slice(6), false);
+  else git(h || "ana", false);
 }
-function fallbackCopy(text) {
-  const area = document.createElement("textarea");
-  area.value = text;
-  area.style.position = "fixed";
-  area.style.left = "-9999px";
-  document.body.appendChild(area);
-  area.select();
-  let ok = false;
+
+/* ───────────── Bildirim, pano, pencere ───────────── */
+let bildirimZaman = null;
+function bildir(metin) {
+  const el = document.getElementById("bildirim");
+  el.textContent = metin;
+  el.classList.add("gorunur");
+  clearTimeout(bildirimZaman);
+  bildirimZaman = setTimeout(() => el.classList.remove("gorunur"), 2600);
+}
+
+async function kopyala(metin, tamam) {
   try {
-    ok = document.execCommand("copy");
-  } catch {}
-  area.remove();
-  toast(
-    ok
-      ? t("הועתק", "Copied")
-      : t("לא התאפשר להעתיק במכשיר הזה", "Copy not available on this device"),
-  );
-}
-function addSaved(status = "todo") {
-  const s = scenarios.find((x) => x.id === state.scenario);
-  if (!s) return;
-  saved.unshift({
-    id: String(Date.now()) + "-" + Math.floor(Math.random() * 10000),
-    scenario: s.id,
-    mode: state.stepMode,
-    status,
-    date: new Date().toISOString(),
-  });
-  if (persist())
-    toast(
-      status === "done"
-        ? t("הפעולה סומנה כנוסתה ✓", "Marked as tried ✓")
-        : t("נשמר כאן בדפדפן בלבד ✓", "Saved only in this browser ✓"),
-    );
-}
-function closeModal() {
-  document.getElementById("modalRoot").innerHTML = "";
-  document.body.style.overflow = "";
-  const trigger = document.getElementById("floatTab");
-  if (trigger) trigger.focus();
-}
-function modal(content) {
-  const root = document.getElementById("modalRoot");
-  root.innerHTML = `<div class="overlay" role="presentation" id="overlay"><section class="drawer" role="dialog" aria-modal="true" aria-label="${esc(content.heading || t("ברידג׳ט", "Bridget"))}" id="drawer"><div class="drawer-head"><h2>✳ ${content.heading || "Bridget"}</h2><button class="close" id="closeModal" aria-label="${t("סגירה", "Close")}">×</button></div><div class="modal-bridget" aria-hidden="true"><img src="bridget-next-step.webp" width="48" height="60" alt=""></div>${content.body}</section></div>`;
-  document.body.style.overflow = "hidden";
-  document.getElementById("closeModal").focus();
-}
-function openTab() {
-  modal({
-    heading: t("ברידג׳ט", "Bridget"),
-    body: `<div class="tab-bot"><div class="preamble">${t("עזרה כאן ועכשיו · ללא AI חיצוני", "Guided help · no external AI")}</div><h3>${t("איזה צעד קטן יעזור כרגע?", "What small step would help right now?")}</h3><p>${t("אני יכולה להציע מסלולי פעולה מתוך תרחישים מוכנים. כרגע זו עזרה מובנית ולא צ׳אט AI חופשי.", "I offer guided actions from prepared scenarios. This is a decision helper, not a live generative AI chat.")}</p></div><div class="prompt-list">${scenarios
-      .slice(0, 6)
-      .map(
-        (s) =>
-          `<button data-scenario="${s.id}">${s.emoji} ${title(s)} ←</button>`,
-      )
-      .join(
-        "",
-      )}</div><p class="mini-copy">${t("אין צורך להזין פרטים אישיים. את ההחלטות מקבלים אתם.", "No personal information required. You make the decisions.")}</p>`,
-  });
-}
-function openWelcome() {
-  modal({
-    heading: t("נעים להכיר", "Glad you’re here"),
-    body: `<div class="welcome"><p class="page-subtitle">${t("באיזה תפקיד הגעתם היום?", "What brings you here today?")}</p><p>${t("בלי שם ובלי הרשמה. הבחירה נשארת רק במהלך הביקור.", "No name or account. This choice lasts only for this visit.")}</p><div class="prompt-list">${[["parent","אני הורה","I’m a parent"],["family","אני מהמשפחה או מטפל/ת בילד","I’m family or a caregiver"],["education","אני מצוות החינוך","I’m an educator"]].map(([id,he,en])=>`<button data-action="welcomeRole" data-role="${id}">${t(he,en)} ←</button>`).join("")}</div><button class="text-link" data-action="welcomeRole" data-role="guest">${t("אפשר גם פשוט להתחיל", "Just let me start")} ←</button></div>`,
-  });
-}
-function welcomeSituation() {
-  modal({heading:t("מה מעסיק אתכם עכשיו?", "What is happening right now?"),body:`<p class="page-subtitle">${t("בחרו רגע אחד. נצא עם משפט ופעולה שאפשר לנסות.", "Pick one moment. Leave with one sentence and one action.")}</p><div class="prompt-list">${scenarios.slice(0,4).map(s=>`<button data-scenario="${s.id}">${s.emoji} ${title(s)} ←</button>`).join("")}</div><button class="text-link" data-action="welcomeAll">${t("משהו אחר? לכל הסיטואציות", "Something else? See all situations")} ←</button><button class="tour-skip" data-action="welcome">${t("חזרה", "Back")}</button>`});
-}
-function openBridgetTour(step = 0) {
-  state.tourStep = Math.max(0, Math.min(3, step));
-  const items = [
-    [
-      t("מתחילים ברגע שקורה עכשיו", "Start with what is happening now"),
-      t(
-        "לא צריך להסביר הכול. בוחרים סיטואציה אחת.",
-        "No need to explain everything. Pick one situation.",
-      ),
-      "👀",
-    ],
-    [
-      t("מקבלים צעד קטן", "Get one small step"),
-      t(
-        "משפט אחד ופעולה אחת שאפשר לנסות.",
-        "One sentence and one action to try.",
-      ),
-      "☝",
-    ],
-    [
-      t("מתרגלים לפני הרגע האמיתי", "Practice before the real moment"),
-      t(
-        "בזירה אפשר לנסות תגובה, לשנות מילים ולנסות שוב.",
-        "In the arena you can try a response, edit the words and retry.",
-      ),
-      "🎭",
-    ],
-    [
-      t("אתם מחליטים מה לקחת", "You choose what to take"),
-      t(
-        "אפשר לשמור, לשתף או רק לקרוא. שום דבר לא נשלח אוטומטית.",
-        "Save, share or simply read. Nothing is sent automatically.",
-      ),
-      "✨",
-    ],
-  ];
-  const [heading, copy, pose] = items[state.tourStep];
-  modal({
-    heading: t("ברידג׳ט מראה את הדרך", "Bridget shows the way"),
-    body: `<div class="bridget-tour pose-${state.tourStep}"><div class="tour-progress" aria-label="${t("התקדמות במסע", "Tour progress")}">${items.map((_, i) => `<span class="${i === state.tourStep ? "on" : ""}"></span>`).join("")}</div><div class="tour-scene"><img src="bridget-next-step.webp" alt="" width="180" height="225"><span class="tour-pose" aria-hidden="true">${pose}</span></div><h3>${heading}</h3><p>${copy}</p><div class="action-row">${state.tourStep ? `<button class="btn secondary" data-action="tourBack">${t("חזרה", "Back")}</button>` : ""}${state.tourStep < 3 ? `<button class="btn primary" data-action="tourNext">${t("הבא", "Next")} ←</button>` : `<button class="btn primary" data-action="tourGo">${t("בואו נתחיל", "Let’s begin")} ←</button>`}</div><button class="tour-skip" data-action="tourClose">${t("מספיק לי, תודה", "That’s enough, thanks")}</button></div>`,
-  });
-}
-function openPractice() {
-  state.simStage = 0;
-  state.simPick = null;
-  renderPractice();
-}
-function renderPractice() {
-  const stage = state.simStage;
-  const he = state.lang === "he";
-  let body = `<p class="page-subtitle">${t("תרגול קצר: הילד לא מתחיל שיעורים. בוחרים תגובה ורואים לאן ממשיכים. בלי ציונים.", "Mini practice: homework is not getting started. Choose a response, then reflect. No scores.")}</p>`;
-  if (stage === 0)
-    body += `<div class="sim-dialogue"><span class="sticker">🧑‍🎓</span><p><strong>${t("הילד/ה:", "Child:")}</strong> ${t('"לא עושה את זה! זה יותר מדי."', "“I’m not doing it! It’s too much.”")}</p></div><div class="prompt-list"><button data-action="simPick" data-pick="1">${t('"תפסיק/י להתווכח ותתחיל/י עכשיו."', "“Stop arguing and start right now.”")}</button><button data-action="simPick" data-pick="2">${t('"נתחיל רק מלפתוח את המחברת יחד?"', "“Could we just open the notebook together?”")}</button></div>`;
-  else if (stage === 1)
-    body += `<div class="sim-dialogue"><span class="sticker">🧑‍🎓</span><p>${state.simPick === 1 ? t('"את/ה לא מבינ/ה כמה קשה לי!"', "“You don’t understand how hard this is!”") : t('"טוב, אבל רק לפתוח."', "“Okay, but just opening it.”")}</p></div><div class="hint">${state.simPick === 1 ? t("כשהטון מתגבר, אפשר לנסות להוריד דרישה ולתקן את הקשר. זו דוגמה אפשרית, לא ניבוי של תגובת ילד.", "When tension rises, try lowering the demand and repairing. This is one possible response, not a prediction.") : t("בקשה קטנה נותנת דרך להתחיל. זה לא מבטיח שיתוף פעולה, אבל מאפשר לנסות.", "A tiny request offers a starting point. It does not guarantee cooperation.")}</div><div class="prompt-list"><button data-action="simNext">${t("מה אומרים עכשיו? ←", "What next? →")}</button><button data-action="simRestart">${t("לבחור תגובה אחרת", "Try the other response")}</button></div>`;
-  else
-    body += `<div class="sim-dialogue"><span class="sticker">🧑‍🎓</span><p>${t('אפשר לומר: "אני רואה שזה גדול עכשיו. בוא/י נבחר רק את הדף הראשון."', "You might say: “This feels big right now. Let’s just pick the first page.”")}</p></div><div class="safe">${t("שאלת סיום: מה היה הצעד הכי קטן שהייתם מוכנים לנסות בבית?", "Reflection: What is the smallest step you would try at home?")}</div><div class="action-row"><button class="btn primary" data-scenario="homework">${t("לקחת את הצעד למציאות", "Bring this into real life")}</button><button class="btn secondary" data-action="simRestart">${t("לתרגל שוב", "Practice again")}</button><a class="btn ghost" href="guide.html#practice-arena">${t("לזירת התרגול המלאה", "Open the full Practice Studio")}</a></div>`;
-  modal({ heading: t("זירת התרגול", "Practice arena"), body });
-}
-function caregiverText(s) {
-  return t(
-    `סיכום כללי לשיתוף — How to ADHD\nסיטואציה: ${s.title[0]}\nמה אפשר לנסות: ${s.step[0]}\nמשפט שימושי: ${s.script[0]}\nזהו חומר הדרכה כללי, לא מידע אישי על ילד. אפשר לערוך לפני שיתוף.`,
-    `General caregiver note — How to ADHD\nSituation: ${s.title[1]}\nOne thing to try: ${s.step[1]}\nUseful sentence: ${s.script[1]}\nGeneral educational content, no child-specific information. Edit before sharing.`,
-  );
-}
-function privacy() {
-  modal({
-    heading: t("פרטיות ובטיחות", "Privacy & safety"),
-    body: `<div class="privacy-copy"><h3>${t("אתם בשליטה", "You stay in control")}</h3><p>${t("אין באתר הרשמה או חשבון. צעדים שמורים נשארים בדפדפן המקומי (localStorage). לא נשלח תוכן לשרת, למודל AI, למייל או לאנליטיקה. השיתוף נעשה רק אם אתם מעתיקים את הסיכום בעצמכם.", "No account is needed. Saved steps remain in your browser (localStorage). We do not send content to a server, AI model, email or analytics. Sharing occurs only when you choose to copy a generic summary.")}</p><p>${t("מומלץ לא להקליד שמות ילדים, מידע מזהה או מידע רפואי. מי שיש לו גישה לדפדפן הזה עשוי לראות את הצעדים השמורים. מחיקת נתוני אתר בדפדפן תמחק אותם.", "Avoid entering child names, identifiable information or health details. Anyone with access to this browser may view saved steps. Clearing site data removes them.")}</p><h3>${t("מתי לא להסתפק באתר", "When to seek help elsewhere")}</h3><p>${t("החומר חינוכי ומעשי בלבד; הוא לא מחליף אבחון, טיפול או ייעוץ מקצועי. אין להסיק ממנו אבחנה. במצב של סכנה מיידית פנו לשירותי חירום מקומיים. בחשש לפגיעה או מצוקה מתמשכת פנו לאיש מקצוע מתאים.", "Educational and practical content only; not diagnosis, therapy or professional care. Do not infer a diagnosis. For immediate danger call local emergency services. For abuse concerns or persistent severe distress, seek qualified help.")}</p><p>${t("זוהי גרסת פיילוט. התגובות של Bridget מבוססות על מסלולים מוגדרים מראש, לא על מודל AI חי.", "This is a pilot. Bridget responses use predefined guided paths, not a live AI model.")}</p></div>`,
-  });
-}
-function actions(event) {
-  const target = event.target.closest(
-    "button,[data-scenario],.clickable[data-action]",
-  );
-  if (!target) return;
-  if (target.dataset.scenario) {
-    closeModalIfOpen();
-    openScenario(target.dataset.scenario);
-    return;
-  }
-  if (target.dataset.view) {
-    navigate(target.dataset.view);
-    return;
-  }
-  if (target.dataset.age) {
-    state.age = target.dataset.age;
-    render();
-    return;
-  }
-  if (target.dataset.choice) {
-    state.followQuestion = Number(target.dataset.choice);
-    render();
-    return;
-  }
-  const action = target.dataset.action;
-  if (!action) return;
-  if (action === "welcome") { openWelcome(); return; }
-  if (action === "welcomeRole") { state.role = target.dataset.role; welcomeSituation(); return; }
-  if (action === "welcomeAll") { closeModal(); navigate("scenarios"); return; }
-  const s = scenarios.find((x) => x.id === state.scenario);
-  if (action === "bridgetTour") {
-    openBridgetTour(0);
-    return;
-  }
-  if (action === "tourNext") {
-    openBridgetTour(state.tourStep + 1);
-    return;
-  }
-  if (action === "tourBack") {
-    openBridgetTour(state.tourStep - 1);
-    return;
-  }
-  if (action === "tourClose") {
-    closeModal();
-    return;
-  }
-  if (action === "tourGo") {
-    openWelcome();
-    return;
-  }
-  if (action === "sim") {
-    openPractice();
-    return;
-  }
-  if (action === "stepMode") {
-    state.stepMode = target.dataset.mode;
-    render();
-    return;
-  }
-  if (action === "saveStep") {
-    addSaved();
-    return;
-  }
-  if (action === "done") {
-    addSaved("done");
-    navigate("mine");
-    return;
-  }
-  if (action === "copyScript" && s) {
-    copyText(s.script[state.lang === "he" ? 0 : 1]);
-    return;
-  }
-  if (action === "shareCare" && s) {
-    modal({
-      heading: t("סיכום לשיתוף", "Caregiver summary"),
-      body: `<p class="mini-copy">${t("אין כאן מידע אישי. בדקו וערכו לפני שיתוף.", "No personal data. Review and edit before sharing.")}</p><textarea id="careText" class="field" style="min-height:210px">${esc(caregiverText(s))}</textarea><button class="btn primary" data-action="copyCare">${t("העתיקו סיכום", "Copy summary")}</button>`,
-    });
-    return;
-  }
-  if (action === "copyCare") {
-    copyText(document.getElementById("careText").value);
-    return;
-  }
-  if (action === "simPick") {
-    state.simPick = Number(target.dataset.pick);
-    state.simStage = 1;
-    renderPractice();
-    return;
-  }
-  if (action === "simNext") {
-    state.simStage = 2;
-    renderPractice();
-    return;
-  }
-  if (action === "simRestart") {
-    openPractice();
-    return;
-  }
-  if (action === "tool90") {
-    modal({
-      heading: t("90 שניות להתחלה", "Start in 90 seconds"),
-      body: `<div class="tab-bot"><h3>${t("אל תנסו לסיים. רק להתחיל.", "Don’t aim to finish. Just begin.")}</h3><p>${t("1. בוחרים פעולה אחת קטנה. 2. מתחילים יחד. 3. עוצרים אחרי זמן קצר ובודקים איך היה.", "1. Choose a tiny action. 2. Start together. 3. Stop after a short interval and notice what happened.")}</p></div><button class="btn primary" data-scenario="homework">${t("לדוגמה מעשית", "See a practical example")}</button>`,
-    });
-    return;
-  }
-  if (action === "toggleSaved") {
-    const i = saved.find((x) => x.id === target.dataset.id);
-    if (i) {
-      i.status = i.status === "done" ? "todo" : "done";
-      persist();
-      render();
-    }
-    return;
-  }
-  if (action === "removeSaved") {
-    saved = saved.filter((x) => x.id !== target.dataset.id);
-    persist();
-    render();
-    return;
-  }
-  if (action === "revisit") {
-    openScenario(target.dataset.id);
-    return;
-  }
-  if (action === "clear") {
-    if (
-      window.confirm(
-        t(
-          "למחוק את כל הצעדים השמורים בדפדפן הזה?",
-          "Delete all saved steps from this browser?",
-        ),
-      )
-    ) {
-      saved = [];
-      persist();
-      render();
-    }
-    return;
-  }
-  if (action === "export") {
-    const safe = saved.map((i) => ({
-      situation:
-        scenarios.find((s) => s.id === i.scenario)?.title[
-          state.lang === "he" ? 0 : 1
-        ] || "",
-      status: i.status,
-      date: i.date,
-    }));
-    const blob = new Blob([JSON.stringify(safe, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "how-to-adhd-steps.json";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return;
-  }
-  if (action === "pilotFeedback") { openPilotFeedback(); return; }
-  if (action === "copyFeedback") {
-    const form = document.getElementById("pilotForm");
-    if (!form.reportValidity()) return;
-    const values = Object.fromEntries(new FormData(form));
-    const text = pilotFeedbackText(values);
-    if (!text) return;
-    copyText(text);
-    document.getElementById("feedbackStatus").textContent = t("בחרתם להעתיק. המשוב לא נשלח לצוות; הדביקו אותו בשיחה עם מי שהזמין אתכם לפיילוט. אין צורך לשלוח שוב את אותו משוב.", "You chose to copy. Feedback has not been sent to the team; paste it into your conversation with your pilot organizer. No need to resend the same response.");
-    return;
+    await navigator.clipboard.writeText(metin);
+    bildir(tamam);
+  } catch {
+    const alan = document.createElement("textarea");
+    alan.value = metin;
+    alan.setAttribute("readonly", "");
+    alan.className = "gizli-alan";
+    document.body.append(alan);
+    alan.select();
+    let oldu = false;
+    try {
+      oldu = document.execCommand("copy");
+    } catch {}
+    alan.remove();
+    bildir(oldu ? tamam : "Kopyalanamadı; metni elle seçip kopyalayın");
   }
 }
-function closeModalIfOpen() {
-  if (document.getElementById("overlay")) closeModal();
+
+let oncekiOdak = null;
+function pencere(baslik, govde) {
+  oncekiOdak = document.activeElement;
+  const kok = document.getElementById("pencere-kok");
+  kok.innerHTML = `<div class="perde" data-eylem="kapat"></div><div class="pencere" role="dialog" aria-modal="true" aria-labelledby="pencere-bas"><div class="pencere-ust"><h2 id="pencere-bas">${kac(baslik)}</h2><button class="kapat" data-eylem="kapat" aria-label="Kapat">×</button></div><div class="pencere-govde" id="pencere-govde">${govde}</div></div>`;
+  kok.querySelector(".kapat").focus();
 }
-function bind() {
-  saved = readSaved();
-  const firstHash = location.hash.replace("#", "");
-  if (["home", "scenarios", "learn", "tools", "mine"].includes(firstHash))
-    state.view = firstHash;
-  render();
-  document.getElementById("lang").addEventListener("click", () => {
-    state.lang = state.lang === "he" ? "en" : "he";
-    render();
-    if (document.getElementById("overlay")) closeModal();
-  });
-  document.getElementById("openTab").addEventListener("click", openTab);
-  document.getElementById("floatTab").addEventListener("click", openTab);
-  document.getElementById("privacyBtn").addEventListener("click", privacy);
-  document.addEventListener("click", (e) => {
-    if (e.target.id === "closeModal" || e.target.id === "overlay") {
-      closeModal();
+function kapat() {
+  const kok = document.getElementById("pencere-kok");
+  if (!kok.innerHTML) return;
+  kok.innerHTML = "";
+  if (oncekiOdak && document.contains(oncekiOdak)) oncekiOdak.focus();
+}
+function provaCiz() {
+  const govde = document.getElementById("pencere-govde");
+  if (govde) govde.innerHTML = provaGovde();
+  else pencere("Konuşma provası", provaGovde());
+}
+
+function ozetMetni(s) {
+  return `Bakım veren için genel not\nDurum: ${s.baslik}\nDenenecek tek şey: ${s.adim}\nKullanılabilecek söz: ${s.cumle}\nGenel eğitim içeriğidir; çocuğa özgü bilgi içermez. Paylaşmadan önce düzenleyin.`;
+}
+
+const HAZIRLIK = "Öğretmen görüşmesi hazırlığı\n1. Bir güçlü yan:\n2. Bir gözlem (yorumsuz, ne zaman ve ne oluyor):\n3. Bir istek (bir hafta denenecek tek düzenleme):\n4. Bir gösterge (işe yaradığını neye bakarak anlayacağız):\n5. Yeniden konuşma tarihi:";
+
+/* ───────────── Olaylar ───────────── */
+function tikla(e) {
+  const h = e.target.closest("[data-git],[data-gez],[data-senaryo],[data-yas],[data-kip],[data-secim],[data-prova],[data-eylem]");
+  if (!h) return;
+  const d = h.dataset;
+  if (d.senaryo) return senaryoAc(d.senaryo);
+  if (d.git || d.gez) {
+    kapat();
+    return git(d.git || d.gez);
+  }
+  if (d.yas) {
+    durum.yas = d.yas;
+    return ciz(false);
+  }
+  if (d.kip) {
+    durum.kip = d.kip;
+    return ciz(false);
+  }
+  if (d.secim !== undefined) {
+    durum.secim = Number(d.secim);
+    return ciz(false);
+  }
+  if (d.prova) {
+    durum.provaSecim = Number(d.prova);
+    durum.prova = 1;
+    return provaCiz();
+  }
+  const s = senaryolar.find((x) => x.id === durum.senaryo);
+  switch (d.eylem) {
+    case "prova":
+      durum.prova = 0;
+      durum.provaSecim = null;
+      return provaCiz();
+    case "provaSon":
+      durum.prova = 2;
+      return provaCiz();
+    case "provaBas":
+      durum.prova = 0;
+      durum.provaSecim = null;
+      return provaCiz();
+    case "kapat":
+      return kapat();
+    case "gizlilik":
+      return pencere("Gizlilik ve güvenlik", gizlilikGovde());
+    case "kaydet":
+      if (!s) return;
+      kayitli.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), senaryo: s.id, kip: durum.kip, durum: "denenecek", tarih: new Date().toISOString() });
+      kayitli = kayitli.slice(0, 100);
+      if (kayitYaz()) bildir("Adımlarım’a kaydedildi");
       return;
+    case "kopyala":
+      return s && kopyala(s.cumle, "Söz kopyalandı");
+    case "ozet":
+      return s && kopyala(ozetMetni(s), "Özet kopyalandı; paylaşmadan önce düzenleyin");
+    case "hazirlik":
+      return kopyala(HAZIRLIK, "Liste kopyalandı");
+    case "degistir": {
+      const k = kayitli.find((x) => x.id === d.id);
+      if (k) k.durum = k.durum === "denendi" ? "denenecek" : "denendi";
+      kayitYaz();
+      return ciz(false);
     }
-    actions(e);
-  });
-  document.addEventListener("input", (e) => {
-    if (e.target.id === "searchScenario") {
-      const el = e.target;
-      const position = el.selectionStart;
-      state.search = el.value;
-      render();
-      const next = document.getElementById("searchScenario");
-      if (next) {
-        next.focus();
-        next.setSelectionRange(position, position);
+    case "sil":
+      kayitli = kayitli.filter((x) => x.id !== d.id);
+      kayitYaz();
+      return ciz(false);
+    case "temizle":
+      if (h.dataset.onay !== "1") {
+        h.dataset.onay = "1";
+        h.textContent = "Emin misiniz? Silmek için yeniden basın";
+        return;
       }
+      kayitli = [];
+      kayitYaz();
+      return ciz(false);
+    case "disa": {
+      const satirlar = kayitli.map((k) => {
+        const sn = senaryolar.find((x) => x.id === k.senaryo);
+        return sn ? `- [${k.durum === "denendi" ? "x" : " "}] ${sn.baslik}: ${adimMetni(sn, k.kip)}` : "";
+      }).filter(Boolean);
+      return kopyala("Adımlarım\n" + satirlar.join("\n"), "Adımlar kopyalandı");
     }
+  }
+}
+
+function baslat() {
+  kayitli = kayitOku();
+  document.addEventListener("click", tikla);
+  document.addEventListener("input", (e) => {
+    if (e.target.id !== "ara") return;
+    durum.arama = e.target.value;
+    const yer = e.target.selectionStart;
+    ciz(false);
+    const yeni = document.getElementById("ara");
+    yeni.focus();
+    try {
+      yeni.setSelectionRange(yer, yer);
+    } catch {}
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && document.getElementById("overlay")) {
-      closeModal();
-      return;
-    }
-    if (
-      (e.key === "Enter" || e.key === " ") &&
-      e.target.matches(
-        '[role="button"][data-scenario], [role="button"][data-action]',
-      )
-    ) {
-      e.preventDefault();
-      e.target.click();
-    }
-    if (e.key === "Tab" && document.getElementById("drawer")) {
-      const els = [
-        ...document
-          .getElementById("drawer")
-          .querySelectorAll("button,[href],textarea,input"),
-      ].filter((x) => !x.disabled);
-      if (!els.length) return;
-      const first = els[0],
-        last = els[els.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    }
+    if (e.key === "Escape") kapat();
   });
-  window.addEventListener("hashchange", () => {
-    const id = location.hash.replace("#", "");
-    if (["home", "scenarios", "learn", "tools", "mine"].includes(id))
-      navigate(id);
-  });
+  window.addEventListener("popstate", adrestenOku);
+  adrestenOku();
 }
-if (IS_BROWSER) {
-  if (document.readyState === "loading")
-    document.addEventListener("DOMContentLoaded", bind);
-  else bind();
+
+if (typeof document !== "undefined") {
+  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", baslat);
+  else baslat();
 }
-if (typeof module !== "undefined")
-  module.exports = { scenarios, esc, labels, initial, guideMap, pilotFeedbackText, pilotQuestions, bridgetGuide, state, openPilotFeedback, actions };
+if (typeof module !== "undefined") module.exports = { senaryolar, KAYNAK };
