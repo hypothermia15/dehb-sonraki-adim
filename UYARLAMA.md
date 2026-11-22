@@ -4,7 +4,7 @@ Bu depo, Danya Dotan'ın [How to ADHD (Parent Pilot)](https://github.com/danyado
 
 Uyarlayan: Doç. Dr. Miraç Barış Usta (çocuk ve ergen psikiyatrisi).
 
-Durum: **taslak**. Klinik içerik uyarlayanın son okumasından geçmeden siteye eklenmeyecektir.
+Durum: **yayında**. Klinik içerik uyarlayanca 22 Kasım 2026'da onaylandı. Aynı gün metinler dil açısından gözden geçirildi (cümle yapısı ve noktalama; olgular değişmedi) ve "Ödev bir türlü başlamıyor" durumuna "ne zaman başka yardım" ölçütü eklendi.
 
 ## Özgün eserden alınanlar
 

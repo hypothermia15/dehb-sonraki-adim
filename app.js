@@ -45,7 +45,7 @@ const senaryolar = [
     soru: ["Vakit dar", "Acelemiz olmayan günlerde de oluyor"],
     yanit: [
       "Bu sabahlık beklentilerden birini bırakın ve sesinizi sakin tutun. Geç kalınan bir sabah, öğretme zamanı değildir.",
-      "Sakin bir saatte “tek iş seçme”yi birlikte prova edin; sabah düzenini resimli bir sıraya dökmek yardımcı olabilir.",
+      "Sakin bir saatte “tek iş seçme”yi birlikte prova edin. Sabah düzenini resimli bir sıraya dökmek yardımcı olabilir.",
     ],
     uyari: "Sıkıntı çok yoğunsa ya da okula gitmeme haftalardır sürüyorsa okulun rehberlik servisiyle ve çocuğu izleyen uzmanla görüşün.",
   },
@@ -63,19 +63,20 @@ const senaryolar = [
       "Sonuç beklemeden 90 saniyelik sabit bir başlangıç düzeni deneyin: masa, kalem, tek soru.",
       "Kısa bir çalışma aralığı ve önceden kararlaştırılmış bir mola kullanın. Molanın ne zaman biteceği baştan belli olsun.",
     ],
+    uyari: "Ödev kavgası haftalardır her akşam sürüyorsa ya da okul başarısı belirgin düşüyorsa sınıf öğretmeniyle ve çocuğu izleyen hekimle görüşün.",
   },
   {
     id: "ekran", yas: "14-18", simge: "📱",
     baslik: "Ekran kapanınca tartışma başlıyor",
     ozet: "Telefondan başka bir işe geçiş herkesi geriyor.",
-    neden: "Keyif veren bir etkinliği birden kesmek güçlü bir dirençle karşılaşabilir. Tartışma çoğu zaman sürenin kendisinden değil, kesilme biçiminden çıkar.",
+    neden: "Keyif veren bir etkinlik birden kesilince direnç güçlü olabilir. Tartışmayı çoğu zaman kesilme biçimi çıkarır.",
     adim: "Sakin bir anda, bir sonraki geçiş için ortak bir işaret kararlaştırın.",
     kucuk: "Bitirmeden önce nasıl bir uyarının işine yarayacağını sorun. Önce dinleyin.",
     baska: "Doğal bir durma noktasında anlaşın: videonun, bölümün ya da şarkının sonu.",
     cumle: "“Kapatmanın seni hazırlıksız yakalamasını istemiyorum. Nasıl bitireceğimizi birlikte kararlaştıralım.”",
     soru: ["Zaten bir anlaşmamız var", "Hiç anlaşmamız yok"],
     yanit: [
-      "Anlaşmayı tartışmanın ortasında değil, sakin bir zamanda yeniden konuşun. İşlemeyen maddeyi birlikte değiştirin.",
+      "Anlaşmayı tartışma bittikten sonra, sakin bir zamanda yeniden konuşun. İşlemeyen maddeyi birlikte değiştirin.",
       "Sınır koymadan önce ihtiyaçları ve beklentileri konuşun: o neye ihtiyaç duyuyor, siz neye?",
     ],
   },
@@ -90,7 +91,7 @@ const senaryolar = [
     cumle: "“Buradayım. Biraz kolaylaşınca konuşuruz.”",
     soru: ["Herkes güvende", "Yaralanma tehlikesi var"],
     yanit: [
-      "Şimdi az söz kullanın; olanları daha sonra, sakinleşince konuşup onarın.",
+      "Şimdi az söz kullanın. Olanları sakinleşince konuşup onarın.",
       "Biri o anda tehlikedeyse 112’yi arayın. Bu sayfaya güvenerek beklemeyin.",
     ],
     uyari: "Çocuğun kendine ya da başkasına zarar verme tehlikesi varsa 112 Acil Çağrı Merkezi’ni arayın.",
@@ -135,7 +136,7 @@ const senaryolar = [
     adim: "Sakin bir zamanda hangi kısmın en zor olduğunu sorun: evden çıkmak mı, ayrılmak mı, sınıfta olmak mı?",
     kucuk: "Yalnızca şunu sorun: “Sabahın en zor kısmı hangisi?” Düzeltmeden dinleyin.",
     baska: "Okul gününü birlikte çizin ve zor gelen tek bir bölümü işaretleyin.",
-    cumle: "“Bunun zor olduğuna inanıyorum. Anlamak istiyorum; destek için okulla birlikte çalışabiliriz.”",
+    cumle: "“Bunun zor olduğuna inanıyorum. Anlamak istiyorum. Destek için okulla birlikte çalışabiliriz.”",
     soru: ["Ayrılmak zor", "Okul günü zor"],
     yanit: [
       "Okulla birlikte kısa ve hep aynı olan bir vedalaşma düzeni kurmayı konuşun.",
@@ -148,7 +149,7 @@ const senaryolar = [
     id: "ergen", yas: "14-18", simge: "💬",
     baslik: "Ergen çocuğum kendini kapatıyor",
     ozet: "“Beni rahat bırak” tek yanıt gibi geliyor.",
-    neden: "Ergenlerle konuşurken özerklik, mahremiyet ve zamanlama belirleyicidir. Ne zaman konuşulacağını onun seçmesi, konuşmanın gerçekleşme olasılığını artırır.",
+    neden: "Ergenlerle konuşurken özerklik, mahremiyet ve zamanlama belirleyicidir. Ne zaman konuşulacağını o seçerse konuşma olasılığı artar.",
     adim: "Kısa bir konuşma için izin isteyin ve zamanını onun seçmesine bırakın.",
     kucuk: "Açık bir cümle bırakın: “İstediğinde buradayım.”",
     baska: "Karşı karşıya oturmak yerine kısa bir araba yolculuğu ya da yürüyüş deneyin.",
@@ -222,12 +223,12 @@ function gorDetay() {
 
 function gorAnla() {
   const konular = [
-    ["🧭", "Kanıt ne diyor: ebeveyn eğitimi neyi değiştirir?", `<p>Davranışsal ebeveyn eğitimi, DEHB’de önerilen ilaç dışı yaklaşımların başında gelir. 32 randomize çalışmayı birleştiren bir meta-analizde, değerlendiricinin hangi grupta olduğunu büyük olasılıkla bilmediği ölçümlerde ebeveynlik uygulamaları düzeldi ve davranım sorunları azaldı; DEHB’nin çekirdek belirtilerindeki azalma ise bu kör ölçümlerde gösterilemedi (Daley ve ark. 2014).</p><p>Bunun ebeveyn için anlamı şudur: bu sayfadaki türden adımlardan beklenmesi gereken, dikkat süresinin uzaması değil, evdeki çatışmanın azalması ve gündelik işlerin daha az sürtünmeyle yürümesidir. Uzman derlemesi ebeveyn eğitimini çok bileşenli tedavinin önemli bir parçası sayar, ama çekirdek belirtiler için tek başına birinci basamak tedavi olarak desteklemez (Daley ve ark. 2018).</p>`],
-    ["🧠", "DEHB hakkında yanlış bilinenler", `<p>Dünya DEHB Federasyonu’nun uluslararası uzlaşı bildirisi, bozukluk hakkındaki yanlış inanışların damgalamaya yol açtığını ve tedaviyi geciktirdiğini belirtir; 27 ülkeden 80 yazarın onayladığı 208 kanıta dayalı sonucu bir araya getirir (Faraone ve ark. 2021).</p><p>Gündelik dile çevrilirse: başlayamamak, unutmak, yerinde duramamak çoğu zaman “istemiyor” değil, “o anda yapamıyor” demektir. Bu ayrım davranışı mazur göstermez; hangi desteğin işe yarayacağını gösterir.</p>`],
-    ["🩺", "Tedavi ve ilaç", `<p>Tedavi planını çocuğu değerlendiren hekim, aileyle birlikte yapar. Amerikan Pediatri Akademisi’nin kılavuzu yaşa göre farklı öneriler verir: okul öncesi çocuklarda (4 yaşından 6. yaş gününe kadar) ilk seçenek davranış yönetimine yönelik ebeveyn eğitimi ve sınıf içi davranışsal düzenlemelerdir; ilaç ancak bunlar yeterli iyileşme sağlamazsa ve işlevsellikteki bozulma orta ya da ağır düzeyde sürüyorsa düşünülür. Okul çağında (6 yaşından 12. yaş gününe kadar) ilaç tedavisi, ebeveyn eğitimi ve sınıf içi davranışsal düzenlemelerle birlikte önerilir. Ergenlerde (12 yaşından 18. yaş gününe kadar) ilaç gencin onayıyla önerilir; davranışsal yaklaşımlar da teşvik edilir (Wolraich ve ark. 2019). İngiltere’nin NICE kılavuzu da tanı ve tedavi için kapsamlı öneriler sunar (NICE NG87).</p><p>Bu kılavuzlar başka ülkelerin sağlık sistemleri için yazılmıştır. Çocuğunuz için doğru olan, onu tanıyan hekimin kararıdır. İlaca başlamak, dozu değiştirmek ya da ilacı kesmek için hekime danışmadan adım atmayın.</p>`],
-    ["🏫", "Okulda ne işe yarar?", `<p>Psikososyal tedavileri kanıt düzeyine göre sınıflayan sistematik derleme, bulguların çocuğun yaşına ve yaklaşımın özelliklerine göre değiştiğini; çalışmalara katılan ailelerde eğitim düzeyi yüksek ebeveynlerin fazla temsil edildiğini belirtir (Evans ve ark. 2018). Sınıf içi davranış yönetimi ve organizasyon becerilerine yönelik eğitim, bu alanda en çok çalışılan yaklaşımlar arasındadır.</p><p>Uygulamadaki karşılığı sadedir: öğretmenle tek bir hedefte anlaşmak, o hedefi her gün kısaca izlemek ve bir hafta sonra birlikte bakmak. Türkiye’deki resmî yollar için <button class="metin-bag" data-git="okul">Okul ve RAM</button> sayfasına bakın.</p>`],
+    ["🧭", "Kanıt ne diyor: ebeveyn eğitimi neyi değiştirir?", `<p>Davranışsal ebeveyn eğitimi, DEHB’de önerilen ilaç dışı yaklaşımların başında gelir. 32 randomize çalışmayı birleştiren bir meta-analizde, değerlendiricinin hangi grupta olduğunu büyük olasılıkla bilmediği ölçümlerde ebeveynlik uygulamaları düzeldi ve davranım sorunları azaldı. DEHB’nin çekirdek belirtilerindeki azalma bu kör ölçümlerde gösterilemedi (Daley ve ark. 2014).</p><p>Ebeveyn için anlamı: bu sayfadaki türden adımlar evdeki çatışmayı azaltmayı ve gündelik işleri daha az sürtünmeyle yürütmeyi hedefler. Dikkat süresinin uzaması beklenmez. Uzman derlemesi ebeveyn eğitimini çok bileşenli tedavinin önemli bir parçası sayar, ama çekirdek belirtiler için tek başına birinci basamak tedavi olarak desteklemez (Daley ve ark. 2018).</p>`],
+    ["🧠", "DEHB hakkında yanlış bilinenler", `<p>Dünya DEHB Federasyonu’nun uluslararası uzlaşı bildirisi, bozukluk hakkındaki yanlış inanışların damgalamaya yol açtığını ve tedaviyi geciktirdiğini belirtir. Bildiri, 27 ülkeden 80 yazarın onayladığı 208 kanıta dayalı sonucu bir araya getirir (Faraone ve ark. 2021).</p><p>Gündelik dille: başlayamamak, unutmak, yerinde duramamak çoğu zaman “o anda yapamıyor” demektir. Bu ayrım davranışı mazur göstermez. Hangi desteğin işe yarayacağını gösterir.</p>`],
+    ["🩺", "Tedavi ve ilaç", `<p>Tedavi planını çocuğu değerlendiren hekim, aileyle birlikte yapar. Amerikan Pediatri Akademisi’nin kılavuzu yaşa göre farklı öneriler verir: okul öncesi çocuklarda (4 yaşından 6. yaş gününe kadar) ilk seçenek davranış yönetimine yönelik ebeveyn eğitimi ve sınıf içi davranışsal düzenlemelerdir. İlaç ancak bunlar yeterli iyileşme sağlamazsa ve işlevsellikteki bozulma orta ya da ağır düzeyde sürüyorsa düşünülür. Okul çağında (6 yaşından 12. yaş gününe kadar) ilaç tedavisi, ebeveyn eğitimi ve sınıf içi davranışsal düzenlemelerle birlikte önerilir. Ergenlerde (12 yaşından 18. yaş gününe kadar) ilaç gencin onayıyla önerilir, davranışsal yaklaşımlar da teşvik edilir (Wolraich ve ark. 2019). İngiltere’nin NICE kılavuzu da tanı ve tedavi için kapsamlı öneriler sunar (NICE NG87).</p><p>Bu kılavuzlar başka ülkelerin sağlık sistemleri için yazılmıştır. Çocuğunuz için doğru olan, onu tanıyan hekimin kararıdır. İlaca başlamak, dozu değiştirmek ya da ilacı kesmek için hekime danışmadan adım atmayın.</p>`],
+    ["🏫", "Okulda ne işe yarar?", `<p>Psikososyal tedavileri kanıt düzeyine göre sınıflayan sistematik derleme, bulguların çocuğun yaşına ve yaklaşımın özelliklerine göre değiştiğini ve çalışmalara katılan ailelerde eğitim düzeyi yüksek ebeveynlerin fazla temsil edildiğini belirtir (Evans ve ark. 2018). Sınıf içi davranış yönetimi ve organizasyon becerilerine yönelik eğitim, bu alanda en çok çalışılan yaklaşımlar arasındadır.</p><p>Uygulamadaki karşılığı sadedir: öğretmenle tek bir hedefte anlaşmak, o hedefi her gün kısaca izlemek ve bir hafta sonra birlikte bakmak. Türkiye’deki resmî yollar için <button class="metin-bag" data-git="okul">Okul ve RAM</button> sayfasına bakın.</p>`],
     ["🧩", "Yanında başka bir şey olabilir mi?", `<p>DEHB’ye kaygı, öğrenme güçlüğü, uyku sorunu ya da duygudurum belirtileri eşlik edebilir. Amerikan Pediatri Akademisi kılavuzunun son güncellemesi, eşlik eden durumların tanınması ve tedavisi için ayrı bir öneri eklemiştir (Wolraich ve ark. 2019).</p><p>Okul reddi, belirgin içe kapanma, yeni başlayan öfke patlamaları ya da derslerde ani düşüş, “DEHB’dendir” denip geçilmemesi gereken durumlardır. Bunları çocuğu izleyen hekime anlatın.</p>`],
-    ["🚩", "Ne zaman beklemeden başvurmalı?", `<ul><li>Kendine ya da başkasına zarar verme sözü ya da davranışı</li><li>Haftalardır süren okula gitmeme</li><li>Uyku, iştah ya da enerjide belirgin ve süren değişiklik</li><li>İstismar, ihmal ya da zorbalık kuşkusu</li><li>İlaç kullanan çocukta yeni ve rahatsız edici bir belirti</li></ul><p>Bu durumlarda bir çocuk ve ergen ruh sağlığı uzmanına başvurun; can güvenliği tehlikesi varsa 112’yi arayın.</p>`],
+    ["🚩", "Ne zaman beklemeden başvurmalı?", `<ul><li>Kendine ya da başkasına zarar verme sözü ya da davranışı</li><li>Haftalardır süren okula gitmeme</li><li>Uyku, iştah ya da enerjide belirgin ve süren değişiklik</li><li>İstismar, ihmal ya da zorbalık kuşkusu</li><li>İlaç kullanan çocukta yeni ve rahatsız edici bir belirti</li></ul><p>Bu durumlarda bir çocuk ve ergen ruh sağlığı uzmanına başvurun. Can güvenliği tehlikesi varsa 112’yi arayın.</p>`],
   ];
   return `<section class="sayfa-bas"><h1>Anla</h1><p>Kısa, kaynaklı altı başlık. İhtiyacınız olanı açın.</p></section><div class="konular">${konular.map(([ik, b, g], i) => `<details class="konu"${i === 0 ? " open" : ""}><summary><span aria-hidden="true">${ik}</span> ${b}</summary>${g}</details>`).join("")}</div>
   <details class="konu kaynaklar"><summary>Kaynaklar</summary><ul>${["daley2014", "daley2018", "evans2018", "faraone2021", "nice", "wolraich2019"].map((k) => `<li>${KAYNAK[k]}</li>`).join("")}</ul><p>Dergi makalelerinin künyeleri PubMed kayıtlarıyla doğrulanmıştır.</p></details>`;
@@ -249,7 +250,7 @@ function gorAdimlarim() {
   if (!kayitli.length) {
     return `<section class="sayfa-bas"><h1>Adımlarım</h1><p>Yalnızca bu tarayıcıda saklanır. Hesap, bulut eşitlemesi ya da bildirim yoktur.</p></section><div class="bos-kutu"><p class="buyuk" aria-hidden="true">🌱</p><h2>Henüz kaydedilmiş adım yok</h2><p>Bir durum seçin, küçük bir adım bulun, isterseniz kaydedin.</p><button class="btn ana" data-git="durumlar">İlk adımı seç</button></div>`;
   }
-  return `<section class="sayfa-bas"><h1>Adımlarım</h1><p>Yalnızca bu tarayıcıda saklanır. Bu tarayıcıya erişen herkes görebilir; çocuğun adını ya da sağlık bilgisini yazmanız gerekmez.</p></section><div class="adim-liste">${kayitli.map((k) => {
+  return `<section class="sayfa-bas"><h1>Adımlarım</h1><p>Yalnızca bu tarayıcıda saklanır. Bu tarayıcıya erişen herkes görebilir. Çocuğun adını ya da sağlık bilgisini yazmanız gerekmez.</p></section><div class="adim-liste">${kayitli.map((k) => {
     const s = senaryolar.find((x) => x.id === k.senaryo);
     if (!s) return "";
     return `<article class="adim-satir"><span class="rozet${k.durum === "denendi" ? " tamam" : ""}">${k.durum === "denendi" ? "Denendi ✓" : "Denenecek"}</span><h3>${kac(s.baslik)}</h3><p>${kac(adimMetni(s, k.kip))}</p><p class="tarih">${kac(new Date(k.tarih).toLocaleDateString("tr-TR"))}</p><div class="dugme-sira kucuk"><button class="btn" data-eylem="degistir" data-id="${kac(k.id)}">${k.durum === "denendi" ? "Yeniden denenecek" : "Denedik ✓"}</button><button class="btn" data-senaryo="${s.id}">Duruma dön</button><button class="btn" data-eylem="sil" data-id="${kac(k.id)}">Kaldır</button></div></article>`;
@@ -264,13 +265,13 @@ function provaGovde() {
   } else if (durum.prova === 1) {
     g += `<div class="replik"><span aria-hidden="true">🧑‍🎓</span><p>${durum.provaSecim === 1 ? "“Ne kadar zor olduğunu anlamıyorsun!”" : "“Tamam, ama yalnızca açacağım.”"}</p></div><p class="yanit">${durum.provaSecim === 1 ? "Gerginlik yükseldiğinde isteği küçültmeyi ve ilişkiyi onarmayı deneyin. Bu olası bir yanıttır, bir öngörü değildir." : "Küçük bir istek bir başlangıç noktası sunar. İş birliğini garanti etmez."}</p><div class="dugme-sira"><button class="btn ana" data-eylem="provaSon">Sonra ne olur?</button><button class="btn" data-eylem="provaBas">Öteki yanıtı dene</button></div>`;
   } else {
-    g += `<p class="yanit">${durum.provaSecim === 1 ? "Onarmak için bir cümle yeter: “Az önce sert konuştum. Yeniden deneyelim: yalnızca defteri açalım.” Ebeveynin geri adım atması otoriteyi zayıflatmaz; çocuğa onarmanın nasıl yapıldığını gösterir." : "Defter açıldıysa durun ve bunu görün: “Açtın, başladık.” Sonraki adımı ondan isteyin: “Hangi sorudan başlayalım?” Bugün tek soruyla bitse de başlangıç kurulmuştur."}</p><div class="dugme-sira"><button class="btn" data-eylem="provaBas">Baştan dene</button><button class="btn ana" data-senaryo="odev">“Ödev başlamıyor” durumuna git</button></div>`;
+    g += `<p class="yanit">${durum.provaSecim === 1 ? "Onarmak için bir cümle yeter: “Az önce sert konuştum. Yeniden deneyelim: yalnızca defteri açalım.” Ebeveynin geri adım atması otoriteyi zayıflatmaz. Çocuğa onarmanın nasıl yapıldığını gösterir." : "Defter açıldıysa durun ve bunu görün: “Açtın, başladık.” Sonraki adımı ondan isteyin: “Hangi sorudan başlayalım?” Bugün tek soruyla bitse de başlangıç kurulmuştur."}</p><div class="dugme-sira"><button class="btn" data-eylem="provaBas">Baştan dene</button><button class="btn ana" data-senaryo="odev">“Ödev başlamıyor” durumuna git</button></div>`;
   }
   return g;
 }
 
 function gizlilikGovde() {
-  return `<h3>Denetim sizde</h3><p>Hesap gerekmez. Kaydettiğiniz adımlar yalnızca bu tarayıcıda (localStorage) durur. Hiçbir içerik bir sunucuya, yapay zekâ modeline, e-postaya ya da istatistik hizmetine gönderilmez. Paylaşım yalnızca siz genel bir özeti kopyalamayı seçtiğinizde olur.</p><p>Çocuğun adını, kimliğini belli edecek bilgileri ya da sağlık ayrıntılarını yazmanız gerekmez. Bu tarayıcıya erişen herkes kaydedilen adımları görebilir; site verilerini temizlemek onları siler.</p><h3>Ne zaman başka yerden yardım</h3><p>Bu sayfa eğitim amaçlı, uygulamaya dönük bir içeriktir; tanı, terapi ya da hekim muayenesi değildir. Buradaki bilgilerden tanı çıkarmayın. Can güvenliği tehlikesinde 112’yi arayın. İhmal, istismar ya da şiddet kuşkusunda ALO 183’e başvurabilirsiniz. Süren ve ağır bir sıkıntıda bir çocuk ve ergen ruh sağlığı uzmanına başvurun.</p>`;
+  return `<h3>Denetim sizde</h3><p>Hesap gerekmez. Kaydettiğiniz adımlar yalnızca bu tarayıcıda (localStorage) durur. Hiçbir içerik bir sunucuya, yapay zekâ modeline, e-postaya ya da istatistik hizmetine gönderilmez. Paylaşım yalnızca siz genel bir özeti kopyalamayı seçtiğinizde olur.</p><p>Çocuğun adını, kimliğini belli edecek bilgileri ya da sağlık ayrıntılarını yazmanız gerekmez. Bu tarayıcıya erişen herkes kaydedilen adımları görebilir. Site verilerini temizlemek onları siler.</p><h3>Ne zaman başka yerden yardım</h3><p>Bu sayfa eğitim amaçlı, uygulamaya dönük bir içeriktir. Tanı, terapi ya da hekim muayenesi yerine geçmez. Buradaki bilgilerden tanı çıkarmayın. Can güvenliği tehlikesinde 112’yi arayın. İhmal, istismar ya da şiddet kuşkusunda ALO 183’e başvurabilirsiniz. Süren ve ağır bir sıkıntıda bir çocuk ve ergen ruh sağlığı uzmanına başvurun.</p>`;
 }
 
 /* ───────────── Çizim ve gezinme ───────────── */
