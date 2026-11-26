@@ -5,6 +5,7 @@
    Kaydedilen adımlar yalnızca bu tarayıcıda durur; hiçbir veri gönderilmez. */
 
 const DEPO = "dehb-adimlar-v1";
+const ADIM_SINIRI = 100;
 const durum = { gorunum: "ana", yas: "hepsi", arama: "", senaryo: null, kip: "adim", secim: null, prova: 0, provaSecim: null };
 let kayitli = [];
 
@@ -14,7 +15,7 @@ function kac(s) {
 function kayitOku() {
   try {
     const v = JSON.parse(localStorage.getItem(DEPO) || "[]");
-    return Array.isArray(v) ? v.filter((x) => x && typeof x.id === "string" && typeof x.senaryo === "string").slice(0, 100) : [];
+    return Array.isArray(v) ? v.filter((x) => x && typeof x.id === "string" && typeof x.senaryo === "string").slice(0, ADIM_SINIRI) : [];
   } catch {
     return [];
   }
@@ -25,7 +26,7 @@ function kayitYaz(yeniListe) {
     kayitli = yeniListe;
     return true;
   } catch {
-    bildir("Bu tarayıcıda kaydedilemiyor");
+    bildir("Değişiklik kaydedilemedi. Yeniden deneyebilirsiniz.");
     return false;
   }
 }
@@ -428,8 +429,12 @@ function tikla(e) {
       return pencere("Gizlilik ve güvenlik", gizlilikGovde());
     case "kaydet": {
       if (!s) return;
+      if (kayitli.length >= ADIM_SINIRI) {
+        bildir(`Adımlarım dolu. Yeni bir adım için ${ADIM_SINIRI} kayıttan birini kaldırın.`);
+        return;
+      }
       const yeniAdim = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), senaryo: s.id, kip: durum.kip, durum: "denenecek", tarih: new Date().toISOString() };
-      if (kayitYaz([yeniAdim, ...kayitli].slice(0, 100))) bildir("Adımlarım’a kaydedildi");
+      if (kayitYaz([yeniAdim, ...kayitli])) bildir("Adımlarım’a kaydedildi");
       return;
     }
     case "kopyala":
@@ -455,6 +460,10 @@ function tikla(e) {
         return;
       }
       if (kayitYaz([])) ciz(false);
+      else {
+        delete h.dataset.onay;
+        h.textContent = "Hepsini sil";
+      }
       return;
     case "disa": {
       const satirlar = kayitli.map((k) => {
