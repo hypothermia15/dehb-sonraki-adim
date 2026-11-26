@@ -5,6 +5,7 @@
    Kaydedilen adımlar yalnızca bu tarayıcıda durur; hiçbir veri gönderilmez. */
 
 const DEPO = "dehb-adimlar-v1";
+const ADIM_SINIRI = 100;
 const durum = { gorunum: "ana", yas: "hepsi", arama: "", senaryo: null, kip: "adim", secim: null, prova: 0, provaSecim: null };
 let kayitli = [];
 
@@ -14,17 +15,18 @@ function kac(s) {
 function kayitOku() {
   try {
     const v = JSON.parse(localStorage.getItem(DEPO) || "[]");
-    return Array.isArray(v) ? v.filter((x) => x && typeof x.id === "string" && typeof x.senaryo === "string").slice(0, 100) : [];
+    return Array.isArray(v) ? v.filter((x) => x && typeof x.id === "string" && typeof x.senaryo === "string").slice(0, ADIM_SINIRI) : [];
   } catch {
     return [];
   }
 }
-function kayitYaz() {
+function kayitYaz(yeniListe) {
   try {
-    localStorage.setItem(DEPO, JSON.stringify(kayitli));
+    localStorage.setItem(DEPO, JSON.stringify(yeniListe));
+    kayitli = yeniListe;
     return true;
   } catch {
-    bildir("Bu tarayıcıda kaydedilemiyor");
+    bildir("Değişiklik kaydedilemedi. Yeniden deneyebilirsiniz.");
     return false;
   }
 }
@@ -425,12 +427,16 @@ function tikla(e) {
       return kapat();
     case "gizlilik":
       return pencere("Gizlilik ve güvenlik", gizlilikGovde());
-    case "kaydet":
+    case "kaydet": {
       if (!s) return;
-      kayitli.unshift({ id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), senaryo: s.id, kip: durum.kip, durum: "denenecek", tarih: new Date().toISOString() });
-      kayitli = kayitli.slice(0, 100);
-      if (kayitYaz()) bildir("Adımlarım’a kaydedildi");
+      if (kayitli.length >= ADIM_SINIRI) {
+        bildir(`Adımlarım dolu. Yeni bir adım için ${ADIM_SINIRI} kayıttan birini kaldırın.`);
+        return;
+      }
+      const yeniAdim = { id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6), senaryo: s.id, kip: durum.kip, durum: "denenecek", tarih: new Date().toISOString() };
+      if (kayitYaz([yeniAdim, ...kayitli])) bildir("Adımlarım’a kaydedildi");
       return;
+    }
     case "kopyala":
       return s && kopyala(s.cumle, "Söz kopyalandı");
     case "ozet":
@@ -438,24 +444,27 @@ function tikla(e) {
     case "hazirlik":
       return kopyala(HAZIRLIK, "Liste kopyalandı");
     case "degistir": {
-      const k = kayitli.find((x) => x.id === d.id);
-      if (k) k.durum = k.durum === "denendi" ? "denenecek" : "denendi";
-      kayitYaz();
-      return ciz(false);
+      const yeniListe = kayitli.map(k => k.id === d.id
+        ? { ...k, durum: k.durum === "denendi" ? "denenecek" : "denendi" }
+        : k);
+      if (kayitYaz(yeniListe)) ciz(false);
+      return;
     }
     case "sil":
-      kayitli = kayitli.filter((x) => x.id !== d.id);
-      kayitYaz();
-      return ciz(false);
+      if (kayitYaz(kayitli.filter((x) => x.id !== d.id))) ciz(false);
+      return;
     case "temizle":
       if (h.dataset.onay !== "1") {
         h.dataset.onay = "1";
         h.textContent = "Emin misiniz? Silmek için yeniden basın";
         return;
       }
-      kayitli = [];
-      kayitYaz();
-      return ciz(false);
+      if (kayitYaz([])) ciz(false);
+      else {
+        delete h.dataset.onay;
+        h.textContent = "Hepsini sil";
+      }
+      return;
     case "disa": {
       const satirlar = kayitli.map((k) => {
         const sn = senaryolar.find((x) => x.id === k.senaryo);
